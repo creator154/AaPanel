@@ -1,53 +1,64 @@
-const $ = s => document.querySelector(s);
+const $ = (s) => document.querySelector(s);
 
 const S = {
   token: localStorage.getItem("zx_admin_token") || "",
   type: "test",
   batch: null,
-  batches: []
+  batches: [],
+  sourceItems: []
 };
 
-const API = () =>
-  ((window.ZX_CONFIG && window.ZX_CONFIG.API_BASE) || "")
-    .replace(/\/$/, "");
+function API() {
+  return (
+    (window.ZX_CONFIG && window.ZX_CONFIG.API_BASE) || ""
+  ).replace(/\/$/, "");
+}
 
 
 /* =====================================================
-   API
+   API REQUEST
    ===================================================== */
 
-async function req(path, opt = {}) {
-
+async function req(path, options = {}) {
   const headers = {
-    ...(opt.body instanceof FormData
-      ? {}
-      : { "Content-Type": "application/json" }),
-    ...(opt.headers || {})
+    "Content-Type": "application/json",
+    ...(options.headers || {})
   };
 
   if (S.token) {
-    headers.Authorization = "Bearer " + S.token;
+    headers.Authorization = `Bearer ${S.token}`;
   }
 
-  const r = await fetch(API() + path, {
-    ...opt,
+  const response = await fetch(`${API()}${path}`, {
+    ...options,
     headers
   });
 
-  const d = await r.json().catch(() => ({}));
+  let data = {};
 
-  if (r.status === 401) {
+  try {
+    data = await response.json();
+  } catch (_) {}
+
+  if (response.status === 401) {
     localStorage.removeItem("zx_admin_token");
     S.token = "";
     showLogin();
-    throw Error("Session expired. Login again.");
+
+    throw new Error(
+      data.message || "Session expired. Please sign in again."
+    );
   }
 
-  if (!r.ok) {
-    throw Error(d.message || "Request failed");
+  if (!response.ok) {
+    throw new Error(
+      data.message ||
+      data.error ||
+      `Request failed (${response.status})`
+    );
   }
 
-  return d;
+  return data;
 }
 
 
@@ -56,24 +67,21 @@ async function req(path, opt = {}) {
    ===================================================== */
 
 function showLogin() {
-
-  const loginScreen = $("#login-screen");
+  const login = $("#login-screen");
   const app = $("#app");
 
-  if (loginScreen) {
-    loginScreen.style.display = "flex";
+  if (login) {
+    login.style.display = "flex";
   }
 
   if (app) {
     app.style.display = "none";
-    app.innerHTML = "";
   }
 
-  const token = $("#auth-token");
+  const input = $("#auth-token");
 
-  if (token) {
-    token.value = "";
-    token.focus();
+  if (input) {
+    input.value = "";
   }
 
   const error = $("#login-error");
@@ -81,27 +89,15 @@ function showLogin() {
   if (error) {
     error.textContent = "";
   }
-
-  const button = $("#login-button");
-
-  if (button) {
-    button.disabled = false;
-    button.textContent = "Login";
-  }
 }
 
 
-/* =====================================================
-   HIDE LOGIN / SHOW APP
-   ===================================================== */
-
 function showApp() {
-
-  const loginScreen = $("#login-screen");
+  const login = $("#login-screen");
   const app = $("#app");
 
-  if (loginScreen) {
-    loginScreen.style.display = "none";
+  if (login) {
+    login.style.display = "none";
   }
 
   if (app) {
@@ -115,30 +111,21 @@ function showApp() {
    ===================================================== */
 
 async function doLogin(e) {
-
-  if (e) {
-    e.preventDefault();
-  }
+  e.preventDefault();
 
   const input = $("#auth-token");
   const error = $("#login-error");
   const button = $("#login-button");
 
-  if (!input) {
-    return;
-  }
+  const authToken =
+    input ? input.value.trim() : "";
 
-  const token = input.value.trim();
-
-  if (!token) {
+  if (!authToken) {
     if (error) {
-      error.textContent = "Enter your auth token.";
+      error.textContent = "Auth Token required";
     }
-    return;
-  }
 
-  if (error) {
-    error.textContent = "";
+    return;
   }
 
   if (button) {
@@ -146,123 +133,62 @@ async function doLogin(e) {
     button.textContent = "Signing in...";
   }
 
-  try {
+  if (error) {
+    error.textContent = "";
+  }
 
-    const r = await fetch(
-      API() + "/api/auth/login",
+  try {
+    console.log(
+      "Login URL:",
+      `${API()}/api/auth/login`
+    );
+
+    const data = await req(
+      "/api/auth/login",
       {
         method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
         body: JSON.stringify({
-          authToken: token
+          authToken
         })
       }
     );
 
-    const d = await r.json().catch(() => ({}));
+    console.log("Login response:", data);
 
-    if (!r.ok) {
-      throw Error(
-        d.message || "Invalid auth token."
+    if (!data.token) {
+      throw new Error(
+        data.message || "Token was not returned by server"
       );
     }
 
-    /*
-      Backend currently returns d.token.
-    */
-
-    S.token =
-      d.token ||
-      d.jwt ||
-      "";
-
-    if (!S.token) {
-      throw Error(
-        "Login response did not contain a token."
-      );
-    }
+    S.token = data.token;
 
     localStorage.setItem(
       "zx_admin_token",
-      S.token
+      data.token
     );
 
     showApp();
 
     await home();
 
-  } catch (e) {
-
-    console.error(e);
+  } catch (err) {
+    console.error(
+      "LOGIN ERROR:",
+      err
+    );
 
     if (error) {
       error.textContent =
-        e.message || "Login failed.";
+        err.message || "Sign in failed";
     }
 
   } finally {
-
     if (button) {
       button.disabled = false;
-      button.textContent = "Login";
+      button.textContent = "Sign In";
     }
   }
-}
-
-
-/* =====================================================
-   SHELL
-   ===================================================== */
-
-function shell(title, body) {
-
-  showApp();
-
-  const app = $("#app");
-
-  if (!app) {
-    return;
-  }
-
-  app.innerHTML = `
-
-    <div class="panel-shell">
-
-      <div class="panel-header">
-
-        <div>
-          <div class="panel-brand">
-            Batch Uploader
-          </div>
-
-          <div class="panel-title">
-            ${esc(title)}
-          </div>
-        </div>
-
-        <button
-          class="btn red"
-          onclick="logout()"
-        >
-          Logout
-        </button>
-
-      </div>
-
-      <div class="panel-content">
-
-        ${body}
-
-      </div>
-
-    </div>
-  `;
-
-  addPanelStyles();
 }
 
 
@@ -271,314 +197,194 @@ function shell(title, body) {
    ===================================================== */
 
 function addPanelStyles() {
-
-  if ($("#zx-panel-style")) {
+  if ($("#zx-panel-styles")) {
     return;
   }
 
-  const style =
-    document.createElement("style");
+  const style = document.createElement("style");
 
-  style.id = "zx-panel-style";
+  style.id = "zx-panel-styles";
 
   style.textContent = `
-
     #app {
-      min-height:100vh;
-      color:#e5e7eb;
+      min-height: 100vh;
+      box-sizing: border-box;
+      padding: 24px;
+      color: #fff;
       background:
         radial-gradient(
-          circle at 10% 0%,
-          rgba(79,70,229,.14),
-          transparent 30%
+          circle at top right,
+          rgba(90,80,255,.20),
+          transparent 35%
         ),
-        #070b16;
+        #080a12;
+      font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
     }
 
-    .panel-shell {
-      min-height:100vh;
+    .zx-wrap {
+      width: min(1150px, 100%);
+      margin: 0 auto;
     }
 
-    .panel-header {
-      min-height:76px;
-      padding:0 28px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      border-bottom:1px solid rgba(255,255,255,.08);
-      background:rgba(15,23,42,.82);
-      backdrop-filter:blur(18px);
+    .zx-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
     }
 
-    .panel-brand {
-      color:#94a3b8;
-      font-size:12px;
-      font-weight:600;
-      margin-bottom:4px;
+    .zx-title {
+      font-size: 25px;
+      font-weight: 800;
+      letter-spacing: -.5px;
     }
 
-    .panel-title {
-      color:#fff;
-      font-size:20px;
-      font-weight:750;
+    .zx-sub {
+      margin-top: 5px;
+      color: #8f96a8;
+      font-size: 13px;
     }
 
-    .panel-content {
-      max-width:1150px;
-      margin:auto;
-      padding:28px;
+    .zx-card {
+      background: rgba(20,23,35,.88);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.28);
     }
 
-    .hero {
-      padding:28px;
-      margin-bottom:22px;
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:18px;
-      background:
-        linear-gradient(
-          135deg,
-          rgba(79,70,229,.18),
-          rgba(124,58,237,.08)
-        );
-      box-shadow:0 20px 50px rgba(0,0,0,.2);
+    .zx-grid {
+      display: grid;
+      grid-template-columns:
+        repeat(auto-fit,minmax(210px,1fr));
+      gap: 16px;
     }
 
-    .hero h1 {
-      margin:0 0 8px;
-      font-size:30px;
-      line-height:1.15;
-      color:#fff;
+    .zx-stat {
+      padding: 22px;
+      border-radius: 16px;
+      background: #111522;
+      border: 1px solid rgba(255,255,255,.07);
+      cursor: pointer;
+      transition: .18s;
     }
 
-    .hero p {
-      margin:0;
-      color:#94a3b8;
+    .zx-stat:hover {
+      transform: translateY(-2px);
+      border-color: rgba(120,110,255,.45);
     }
 
-    .scope {
-      margin-top:18px;
-      color:#a5b4fc;
-      font-size:13px;
+    .zx-stat-number {
+      font-size: 30px;
+      font-weight: 800;
+      margin-top: 8px;
     }
 
-    .stats {
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:14px;
-      margin-bottom:22px;
+    .zx-muted {
+      color: #8f96a8;
     }
 
-    .stat {
-      padding:19px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(15,23,42,.72);
-      color:#94a3b8;
-      font-size:13px;
+    .zx-btn {
+      border: 0;
+      border-radius: 11px;
+      padding: 11px 16px;
+      cursor: pointer;
+      color: #fff;
+      background: #635bff;
+      font-weight: 700;
     }
 
-    .stat b {
-      display:block;
-      margin-top:6px;
-      color:#fff;
-      font-size:25px;
+    .zx-btn:hover {
+      filter: brightness(1.1);
     }
 
-    .tiles {
-      display:grid;
-      grid-template-columns:repeat(2,1fr);
-      gap:18px;
+    .zx-btn.secondary {
+      background: #202536;
     }
 
-    .tile {
-      padding:28px;
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.08);
-      cursor:pointer;
-      transition:.2s;
-      background:#111827;
+    .zx-btn.danger {
+      background: #9d3347;
     }
 
-    .tile:hover {
-      transform:translateY(-3px);
-      border-color:rgba(99,102,241,.5);
-      box-shadow:0 18px 40px rgba(0,0,0,.22);
+    .zx-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-bottom: 18px;
     }
 
-    .tile h2 {
-      margin:14px 0 7px;
-      color:#fff;
+    .zx-list {
+      display: grid;
+      gap: 10px;
     }
 
-    .tile p {
-      margin:0;
-      color:#94a3b8;
+    .zx-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      padding: 15px;
+      border-radius: 13px;
+      background: #111522;
+      border: 1px solid rgba(255,255,255,.06);
     }
 
-    .icon {
-      font-size:30px;
+    .zx-row-title {
+      font-weight: 700;
     }
 
-    .blue {
-      background:
-        linear-gradient(
-          135deg,
-          rgba(37,99,235,.17),
-          rgba(15,23,42,.85)
-        );
+    .zx-row-sub {
+      margin-top: 4px;
+      color: #858da0;
+      font-size: 12px;
     }
 
-    .green {
-      background:
-        linear-gradient(
-          135deg,
-          rgba(16,185,129,.14),
-          rgba(15,23,42,.85)
-        );
+    .zx-search {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 13px 15px;
+      border-radius: 11px;
+      border: 1px solid rgba(255,255,255,.09);
+      outline: none;
+      background: #0c0f18;
+      color: #fff;
+      margin-bottom: 16px;
     }
 
-    .bar {
-      margin:20px 0;
+    .zx-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: #858da0;
     }
 
-    .bar input {
-      width:100%;
-      height:46px;
-      padding:0 14px;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,.1);
-      outline:none;
-      background:#0f172a;
-      color:#fff;
+    .zx-loading {
+      text-align: center;
+      padding: 45px;
+      color: #9aa1b3;
     }
 
-    .row {
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:15px;
-      padding:18px;
-      margin-bottom:10px;
-      border:1px solid rgba(255,255,255,.07);
-      border-radius:13px;
-      background:rgba(15,23,42,.75);
-    }
-
-    .row b {
-      color:#fff;
-      display:block;
-      margin-bottom:5px;
-    }
-
-    .row small {
-      color:#64748b;
-    }
-
-    .actions {
-      display:flex;
-      gap:8px;
-    }
-
-    .btn {
-      border:0;
-      border-radius:8px;
-      padding:10px 15px;
-      color:#fff;
-      background:#4f46e5;
-      cursor:pointer;
-      font-weight:600;
-    }
-
-    .btn:hover {
-      filter:brightness(1.1);
-    }
-
-    .btn.green {
-      background:#059669;
-    }
-
-    .btn.red {
-      background:#dc2626;
-    }
-
-    .btn.gray {
-      background:#334155;
-    }
-
-    .btn.full {
-      width:100%;
-    }
-
-    .card {
-      padding:22px;
-      margin-top:18px;
-      border-radius:15px;
-      border:1px solid rgba(255,255,255,.07);
-      background:#0f172a;
-    }
-
-    .notice {
-      margin:14px 0;
-      padding:12px;
-      border-radius:8px;
-      color:#a5b4fc;
-      background:rgba(79,70,229,.10);
-    }
-
-    .admin-tools {
-      display:flex;
-      gap:10px;
-      margin-bottom:20px;
-    }
-
-    .muted {
-      color:#94a3b8;
-      font-size:13px;
-    }
-
-    @media(max-width:750px) {
-
-      .stats {
-        grid-template-columns:repeat(2,1fr);
+    @media(max-width:650px) {
+      #app {
+        padding: 14px;
       }
 
-      .tiles {
-        grid-template-columns:1fr;
+      .zx-top {
+        align-items: flex-start;
+        flex-direction: column;
       }
 
-      .panel-header {
-        padding:0 16px;
-      }
-
-      .panel-content {
-        padding:18px;
+      .zx-row {
+        align-items: flex-start;
+        flex-direction: column;
       }
     }
-
-    @media(max-width:500px) {
-
-      .stats {
-        grid-template-columns:1fr 1fr;
-      }
-
-      .row {
-        align-items:flex-start;
-        flex-direction:column;
-      }
-
-      .actions {
-        width:100%;
-      }
-
-      .actions .btn {
-        width:100%;
-      }
-
-      .admin-tools {
-        flex-direction:column;
-      }
-    }
-
   `;
 
   document.head.appendChild(style);
@@ -586,145 +392,172 @@ function addPanelStyles() {
 
 
 /* =====================================================
-   HOME
+   SHELL
+   ===================================================== */
+
+function shell(title, body) {
+  addPanelStyles();
+
+  const app = $("#app");
+
+  if (!app) {
+    throw new Error("#app not found in index.html");
+  }
+
+  app.innerHTML = `
+    <div class="zx-wrap">
+
+      <div class="zx-top">
+
+        <div>
+          <div class="zx-title">${escapeHtml(title)}</div>
+          <div class="zx-sub">
+            Batch Uploader Panel
+          </div>
+        </div>
+
+        <button
+          class="zx-btn secondary"
+          onclick="logout()"
+        >
+          Logout
+        </button>
+
+      </div>
+
+      ${body}
+
+    </div>
+  `;
+
+  app.style.display = "block";
+}
+
+
+/* =====================================================
+   DASHBOARD
    ===================================================== */
 
 async function home() {
+  showApp();
+
+  shell(
+    "Batch Uploader",
+    `
+      <div class="zx-loading">
+        Loading dashboard...
+      </div>
+    `
+  );
 
   try {
-
-    const [s, me] =
-      await Promise.all([
-        req("/api/admin/stats"),
-        req("/api/admin/me")
-      ]);
-
-    const user =
-      me.user || {};
-
-    const isMaster =
-      user.scope === "all";
+    const [stats, me] = await Promise.all([
+      req("/api/admin/stats"),
+      req("/api/admin/me")
+    ]);
 
     shell(
-      "Dashboard",
-
+      "Batch Uploader",
       `
+        <div class="zx-card">
 
-      <div class="hero">
+          <div class="zx-actions">
+            <button
+              class="zx-btn"
+              onclick="batches('test')"
+            >
+              Tests
+            </button>
 
-        <h1>
-          Test Series Uploader
-        </h1>
+            <button
+              class="zx-btn secondary"
+              onclick="batches('dpp')"
+            >
+              DPPs
+            </button>
+          </div>
 
-        <p>
-          Upload and manage your test series content
-        </p>
+          <div class="zx-grid">
 
-        <div class="scope">
-          🔐 ${esc(user.username || "Uploader")}
-          •
-          ${
-            isMaster
-              ? "All batches"
-              : "Assigned batches only"
-          }
-        </div>
+            <div
+              class="zx-stat"
+              onclick="batches('test')"
+            >
+              <div class="zx-muted">
+                Tests
+              </div>
 
-      </div>
-
-      ${
-        isMaster
-          ? `
-            <div class="admin-tools">
-
-              <button
-                class="btn gray"
-                onclick="manageBatches()"
-              >
-                Manage Batches
-              </button>
-
-              <button
-                class="btn gray"
-                onclick="manageTokens()"
-              >
-                Uploader Tokens
-              </button>
-
+              <div class="zx-stat-number">
+                ${Number(stats.tests || 0)}
+              </div>
             </div>
-          `
-          : ""
-      }
 
-      <div class="stats">
+            <div
+              class="zx-stat"
+              onclick="batches('dpp')"
+            >
+              <div class="zx-muted">
+                DPPs
+              </div>
 
-        <div class="stat">
-          Batches
-          <b>${s.batches || 0}</b>
+              <div class="zx-stat-number">
+                ${Number(stats.dpps || 0)}
+              </div>
+            </div>
+
+            <div class="zx-stat">
+              <div class="zx-muted">
+                Published
+              </div>
+
+              <div class="zx-stat-number">
+                ${Number(stats.published || 0)}
+              </div>
+            </div>
+
+            <div class="zx-stat">
+              <div class="zx-muted">
+                Access
+              </div>
+
+              <div class="zx-stat-number"
+                   style="font-size:20px">
+                ${escapeHtml(
+                  me.user?.scope === "all"
+                    ? "All Batches"
+                    : "Assigned"
+                )}
+              </div>
+            </div>
+
+          </div>
+
         </div>
-
-        <div class="stat">
-          Tests
-          <b>${s.tests || 0}</b>
-        </div>
-
-        <div class="stat">
-          DPPs
-          <b>${s.dpps || 0}</b>
-        </div>
-
-        <div class="stat">
-          Published
-          <b>${s.published || 0}</b>
-        </div>
-
-      </div>
-
-      <div class="tiles">
-
-        <div
-          class="tile blue"
-          onclick="batches('test')"
-        >
-          <div class="icon">📄</div>
-
-          <h2>Tests</h2>
-
-          <p>
-            View your batches and upload tests
-          </p>
-        </div>
-
-        <div
-          class="tile green"
-          onclick="batches('dpp')"
-        >
-          <div class="icon">📚</div>
-
-          <h2>DPPs</h2>
-
-          <p>
-            View your batches and upload DPPs
-          </p>
-        </div>
-
-      </div>
       `
     );
 
-  } catch (e) {
+  } catch (err) {
+    shell(
+      "Batch Uploader",
+      `
+        <div class="zx-card">
+          <div class="zx-empty">
+            <div>
+              ${escapeHtml(err.message)}
+            </div>
 
-    console.error(e);
+            <br>
 
-    if (
-      String(e.message)
-        .toLowerCase()
-        .includes("session")
-    ) {
-      logout();
-    } else {
-      alert(e.message || "Dashboard failed to load");
-    }
+            <button
+              class="zx-btn"
+              onclick="home()"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      `
+    );
   }
 }
 
@@ -734,365 +567,358 @@ async function home() {
    ===================================================== */
 
 async function batches(type) {
+  S.type = type === "dpp" ? "dpp" : "test";
+
+  shell(
+    S.type === "test"
+      ? "Select Batch"
+      : "Select Batch • DPP",
+    `
+      <div class="zx-card">
+        <div class="zx-loading">
+          Loading batches...
+        </div>
+      </div>
+    `
+  );
 
   try {
-
-    S.type = type;
-
     const data =
       await req(
         "/api/admin/source/batches"
       );
 
+    const raw =
+      data.data?.batches ||
+      data.data?.items ||
+      data.data?.data ||
+      data.data ||
+      [];
+
     S.batches =
-      normalizeBatches(data);
+      Array.isArray(raw)
+        ? raw.map(normalizeBatch)
+        : [];
 
+    renderBatches();
+
+  } catch (err) {
     shell(
-      type === "test"
-        ? "Your Test Batches"
-        : "Your DPP Batches",
-
+      "Select Batch",
       `
+        <div class="zx-card">
+          <div class="zx-empty">
+            ${escapeHtml(err.message)}
 
-      <button
-        class="btn gray"
-        onclick="home()"
-      >
-        ← Back
-      </button>
+            <br><br>
 
-      <div class="bar">
+            <button
+              class="zx-btn"
+              onclick="batches('${S.type}')"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      `
+    );
+  }
+}
+
+
+function renderBatches() {
+  shell(
+    S.type === "test"
+      ? "Select Batch"
+      : "Select Batch • DPP",
+    `
+      <div class="zx-card">
+
+        <div class="zx-actions">
+          <button
+            class="zx-btn secondary"
+            onclick="home()"
+          >
+            ← Dashboard
+          </button>
+
+          <button
+            class="zx-btn ${S.type === "test" ? "" : "secondary"}"
+            onclick="batches('test')"
+          >
+            Tests
+          </button>
+
+          <button
+            class="zx-btn ${S.type === "dpp" ? "" : "secondary"}"
+            onclick="batches('dpp')"
+          >
+            DPPs
+          </button>
+        </div>
 
         <input
-          id="search"
-          placeholder="Search batches..."
-          oninput="drawBatches()"
+          id="batch-search"
+          class="zx-search"
+          placeholder="Search batch..."
+          oninput="filterBatches()"
         >
 
+        <div
+          id="batch-list"
+          class="zx-list"
+        ></div>
+
       </div>
+    `
+  );
 
-      <div id="list"></div>
-
-      `
-    );
-
-    drawBatches();
-
-  } catch (e) {
-
-    console.error(e);
-
-    alert(
-      e.message ||
-      "Failed to load batches"
-    );
-  }
+  drawBatchList(S.batches);
 }
 
 
-/* =====================================================
-   NORMALIZE BATCHES
-   ===================================================== */
-
-function normalizeBatches(data) {
-
-  let list = [];
-
-  if (Array.isArray(data)) {
-    list = data;
-  } else if (Array.isArray(data.batches)) {
-    list = data.batches;
-  } else if (Array.isArray(data.data)) {
-    list = data.data;
-  } else if (
-    data.data &&
-    Array.isArray(data.data.batches)
-  ) {
-    list = data.data.batches;
-  } else if (
-    data.data &&
-    Array.isArray(data.data.data)
-  ) {
-    list = data.data.data;
-  }
-
-  return list
-    .map((b, index) => {
-
-      const id =
-        b._id ||
-        b.id ||
-        b.batchId;
-
-      const name =
-        b.name ||
-        b.batchName ||
-        b.title ||
-        `Batch ${index + 1}`;
-
-      return {
-        ...b,
-        _id: String(id || ""),
-        name: String(name)
-      };
-    })
-    .filter(b => b._id);
-}
-
-
-/* =====================================================
-   DRAW BATCHES
-   ===================================================== */
-
-function drawBatches() {
-
+function filterBatches() {
   const q =
-    ($("#search")?.value || "")
-      .toLowerCase()
-      .trim();
+    ($("#batch-search")?.value || "")
+      .trim()
+      .toLowerCase();
 
   const list =
-    S.batches.filter(b =>
-      (b.name || "")
-        .toLowerCase()
-        .includes(q)
+    S.batches.filter(
+      b =>
+        b.name
+          .toLowerCase()
+          .includes(q)
     );
 
-  const el = $("#list");
+  drawBatchList(list);
+}
 
-  if (!el) {
+
+function drawBatchList(list) {
+  const box = $("#batch-list");
+
+  if (!box) {
     return;
   }
 
-  el.innerHTML =
-    list.map(b => `
+  if (!list.length) {
+    box.innerHTML = `
+      <div class="zx-empty">
+        No batches found
+      </div>
+    `;
 
-      <div class="row">
+    return;
+  }
 
-        <div>
-          <b>${esc(b.name)}</b>
+  box.innerHTML =
+    list.map(
+      b => `
+        <div class="zx-row">
 
-          <small>
-            ${esc(
-              b.language ||
-              b.status ||
-              ""
-            )}
-          </small>
-        </div>
+          <div>
+            <div class="zx-row-title">
+              ${escapeHtml(b.name)}
+            </div>
 
-        <div class="actions">
+            <div class="zx-row-sub">
+              ${escapeHtml(
+                b.id
+                  ? `Batch ID: ${b.id}`
+                  : ""
+              )}
+            </div>
+          </div>
 
           <button
-            class="btn"
-            onclick="content('${escAttr(b._id)}')"
+            class="zx-btn"
+            onclick="content('${escapeAttr(b.id)}')"
           >
-            View ${
-              S.type === "test"
-                ? "Tests"
-                : "DPPs"
-            }
+            Open
           </button>
 
         </div>
-
-      </div>
-
-    `).join("");
-
-  if (!list.length) {
-    el.innerHTML =
-      "<p class='muted'>No batches found.</p>";
-  }
+      `
+    ).join("");
 }
 
 
 /* =====================================================
-   CONTENT
+   TESTS / DPPS
    ===================================================== */
 
 async function content(sourceBatchId) {
+  S.batch = S.batches.find(
+    b => String(b.id) === String(sourceBatchId)
+  ) || {
+    id: sourceBatchId,
+    name: "Selected Batch"
+  };
+
+  const endpoint =
+    S.type === "dpp"
+      ? `/api/admin/source/batches/${encodeURIComponent(
+          sourceBatchId
+        )}/dpps`
+      : `/api/admin/source/batches/${encodeURIComponent(
+          sourceBatchId
+        )}/tests`;
+
+  shell(
+    S.batch.name,
+    `
+      <div class="zx-card">
+        <div class="zx-loading">
+          Loading ${S.type === "dpp" ? "DPPs" : "Tests"}...
+        </div>
+      </div>
+    `
+  );
 
   try {
+    const data = await req(endpoint);
 
-    S.batch =
-      S.batches.find(
-        b =>
-          String(b._id) ===
-          String(sourceBatchId)
-      );
+    const raw =
+      data.data?.items ||
+      data.data?.tests ||
+      data.data?.dpps ||
+      data.data?.data ||
+      data.data ||
+      [];
 
-    if (!S.batch) {
-      throw Error("Batch not found");
-    }
+    S.sourceItems =
+      Array.isArray(raw)
+        ? raw.map(normalizeItem)
+        : [];
 
-    const endpoint =
-      S.type === "test"
-        ? `/api/admin/source/batches/${encodeURIComponent(sourceBatchId)}/tests`
-        : `/api/admin/source/batches/${encodeURIComponent(sourceBatchId)}/dpps`;
+    renderContent();
 
-    const data =
-      await req(endpoint);
-
-    const items =
-      normalizeItems(data);
-
+  } catch (err) {
     shell(
-      S.type === "test"
-        ? "Available Tests"
-        : "Available DPPs",
-
+      S.batch.name,
       `
+        <div class="zx-card">
 
-      <button
-        class="btn gray"
-        onclick="batches('${S.type}')"
-      >
-        ← Back to Batches
-      </button>
+          <div class="zx-actions">
+            <button
+              class="zx-btn secondary"
+              onclick="batches('${S.type}')"
+            >
+              ← Back
+            </button>
+          </div>
 
-      <div class="card">
-
-        <b>
-          ${esc(S.batch.name)}
-        </b>
-
-        <div class="notice">
-          Available: ${items.length}
-        </div>
-
-        <div id="items">
-
-          ${
-            items.length
-              ? items.map(itemRow).join("")
-              : "<p class='muted'>No content available.</p>"
-          }
+          <div class="zx-empty">
+            ${escapeHtml(err.message)}
+          </div>
 
         </div>
-
-      </div>
-
       `
-    );
-
-  } catch (e) {
-
-    console.error(e);
-
-    alert(
-      e.message ||
-      "Failed to load content"
     );
   }
 }
 
 
-/* =====================================================
-   NORMALIZE ITEMS
-   ===================================================== */
+function renderContent() {
+  shell(
+    S.batch?.name || "Content",
+    `
+      <div class="zx-card">
 
-function normalizeItems(data) {
+        <div class="zx-actions">
+          <button
+            class="zx-btn secondary"
+            onclick="batches('${S.type}')"
+          >
+            ← Batches
+          </button>
+        </div>
 
-  let list = [];
-
-  if (Array.isArray(data)) {
-    list = data;
-  } else if (Array.isArray(data.items)) {
-    list = data.items;
-  } else if (Array.isArray(data.tests)) {
-    list = data.tests;
-  } else if (Array.isArray(data.dpps)) {
-    list = data.dpps;
-  } else if (Array.isArray(data.data)) {
-    list = data.data;
-  } else if (
-    data.data &&
-    Array.isArray(data.data.items)
-  ) {
-    list = data.data.items;
-  } else if (
-    data.data &&
-    Array.isArray(data.data.tests)
-  ) {
-    list = data.data.tests;
-  } else if (
-    data.data &&
-    Array.isArray(data.data.dpps)
-  ) {
-    list = data.data.dpps;
-  }
-
-  return list
-    .map((x, index) => ({
-      ...x,
-
-      _sourceId: String(
-        x._id ||
-        x.id ||
-        x.testId ||
-        x.dppId ||
-        ""
-      ),
-
-      _title: String(
-        x.title ||
-        x.name ||
-        x.testName ||
-        x.dppName ||
-        `Item ${index + 1}`
-      )
-    }))
-    .filter(x => x._sourceId);
-}
-
-
-/* =====================================================
-   ITEM ROW
-   ===================================================== */
-
-function itemRow(x) {
-
-  const count =
-    x.totalQuestions ||
-    x.questionCount ||
-    (
-      Array.isArray(x.questions)
-        ? x.questions.length
-        : 0
-    ) ||
-    0;
-
-  return `
-
-    <div class="row">
-
-      <div>
-
-        <b>
-          ${esc(x._title)}
-        </b>
-
-        <small>
-          ${count} Questions
-        </small>
-
-      </div>
-
-      <div class="actions">
-
-        <button
-          class="btn green"
-          onclick="uploadSourceItem('${escAttr(x._sourceId)}')"
+        <input
+          id="item-search"
+          class="zx-search"
+          placeholder="Search ${S.type === "dpp" ? "DPP" : "test"}..."
+          oninput="filterContent()"
         >
-          Upload
-        </button>
+
+        <div
+          id="item-list"
+          class="zx-list"
+        ></div>
 
       </div>
+    `
+  );
 
-    </div>
+  drawContentList(S.sourceItems);
+}
 
-  `;
+
+function filterContent() {
+  const q =
+    ($("#item-search")?.value || "")
+      .trim()
+      .toLowerCase();
+
+  const list =
+    S.sourceItems.filter(
+      item =>
+        item.title
+          .toLowerCase()
+          .includes(q)
+    );
+
+  drawContentList(list);
+}
+
+
+function drawContentList(list) {
+  const box = $("#item-list");
+
+  if (!box) {
+    return;
+  }
+
+  if (!list.length) {
+    box.innerHTML = `
+      <div class="zx-empty">
+        No ${S.type === "dpp" ? "DPPs" : "tests"} found
+      </div>
+    `;
+
+    return;
+  }
+
+  box.innerHTML =
+    list.map(
+      item => `
+        <div class="zx-row">
+
+          <div>
+            <div class="zx-row-title">
+              ${escapeHtml(item.title)}
+            </div>
+
+            <div class="zx-row-sub">
+              ${escapeHtml(
+                item.id
+                  ? `ID: ${item.id}`
+                  : ""
+              )}
+            </div>
+          </div>
+
+          <button
+            class="zx-btn"
+            onclick="uploadSourceItem('${escapeAttr(item.id)}')"
+          >
+            Upload
+          </button>
+
+        </div>
+      `
+    ).join("");
 }
 
 
@@ -1101,683 +927,200 @@ function itemRow(x) {
    ===================================================== */
 
 async function uploadSourceItem(sourceId) {
+  if (!S.batch?.id) {
+    alert("Batch not selected");
+    return;
+  }
+
+  const type =
+    S.type === "dpp"
+      ? "dpp"
+      : "test";
 
   try {
+    shell(
+      "Uploading...",
+      `
+        <div class="zx-card">
+          <div class="zx-loading">
+            Fetching questions...
+          </div>
+        </div>
+      `
+    );
 
-    if (!sourceId) {
-      throw Error("Invalid source item ID");
-    }
-
-    const data =
+    const detail =
       await req(
-        `/api/admin/source/tests/${encodeURIComponent(sourceId)}`
+        `/api/admin/source/tests/${encodeURIComponent(
+          sourceId
+        )}`
       );
 
-    const item =
-      extractDetails(data);
-
-    if (!item) {
-      throw Error("Test details not found");
-    }
+    const source =
+      detail.data || detail;
 
     const questions =
-      extractQuestions(item);
+      extractQuestions(source);
 
-    if (!Array.isArray(questions)) {
-      throw Error(
-        "Questions were not found in source response"
+    const title =
+      source.title ||
+      source.name ||
+      "Untitled";
+
+    const payload = {
+      title,
+      instructions:
+        source.instructions ||
+        source.description ||
+        "",
+      startTime:
+        source.startTime ||
+        source.startDate ||
+        null,
+      questions,
+      published: true
+    };
+
+    const result =
+      await req(
+        `/api/admin/batches/${encodeURIComponent(
+          S.batch.id
+        )}/content/${type}`,
+        {
+          method: "POST",
+          body: JSON.stringify(payload)
+        }
+      );
+
+    if (!result.success) {
+      throw new Error(
+        result.message ||
+        "Upload failed"
       );
     }
 
-    const title =
-      item.title ||
-      item.name ||
-      item.testName ||
-      item.dppName ||
-      "Imported Test";
-
-    await req(
-      `/api/admin/batches/${encodeURIComponent(
-        S.batch._id
-      )}/content/${S.type}`,
-      {
-        method: "POST",
-
-        body: JSON.stringify({
-          title,
-
-          startTime:
-            item.startTime ||
-            item.startDate ||
-            null,
-
-          instructions:
-            item.instructions ||
-            "",
-
-          questions,
-
-          published: true
-        })
-      }
-    );
-
-    alert("Uploaded successfully");
-
-    await content(S.batch._id);
-
-  } catch (e) {
-
-    console.error(e);
-
     alert(
-      e.message ||
-      "Upload failed"
-    );
-  }
-}
-
-
-/* =====================================================
-   DETAILS
-   ===================================================== */
-
-function extractDetails(data) {
-
-  if (
-    data &&
-    data.data &&
-    !Array.isArray(data.data)
-  ) {
-
-    if (data.data.test) {
-      return data.data.test;
-    }
-
-    if (data.data.dpp) {
-      return data.data.dpp;
-    }
-
-    return data.data;
-  }
-
-  if (data && data.test) {
-    return data.test;
-  }
-
-  if (data && data.dpp) {
-    return data.dpp;
-  }
-
-  return data;
-}
-
-
-/* =====================================================
-   QUESTIONS
-   ===================================================== */
-
-function extractQuestions(item) {
-
-  if (Array.isArray(item.questions)) {
-    return item.questions;
-  }
-
-  if (
-    item.data &&
-    Array.isArray(item.data.questions)
-  ) {
-    return item.data.questions;
-  }
-
-  if (
-    item.test &&
-    Array.isArray(item.test.questions)
-  ) {
-    return item.test.questions;
-  }
-
-  if (
-    item.dpp &&
-    Array.isArray(item.dpp.questions)
-  ) {
-    return item.dpp.questions;
-  }
-
-  return [];
-}
-
-
-/* =====================================================
-   LOCAL BATCH MANAGEMENT
-   ===================================================== */
-
-async function manageBatches() {
-
-  try {
-
-    const data =
-      await req("/api/admin/batches");
-
-    const localBatches =
-      data.batches || [];
-
-    modal(`
-
-      <h3>Local Batches</h3>
-
-      <button
-        class="btn green full"
-        onclick="newBatch()"
-      >
-        + Create Batch
-      </button>
-
-      <div style="margin-top:15px">
-
-        ${
-          localBatches.length
-            ? localBatches.map(b => `
-                <div class="row">
-
-                  <div>
-                    <b>${esc(b.name)}</b>
-                    <small>
-                      ${esc(b.category || "")}
-                    </small>
-                  </div>
-
-                </div>
-              `).join("")
-            : "<p class='muted'>No local batches.</p>"
-        }
-
-      </div>
-    `);
-
-  } catch (e) {
-    alert(e.message);
-  }
-}
-
-
-function newBatch() {
-
-  modal(`
-
-    <h3>Create Local Batch</h3>
-
-    <label class="label">
-      Batch Name
-    </label>
-
-    <input id="bn">
-
-    <label class="label">
-      Category
-    </label>
-
-    <select id="bc">
-      <option>Boards Level Tests</option>
-      <option>JEE Tests</option>
-      <option>NEET Tests</option>
-      <option>DROPPER Tests</option>
-      <option>Other Batch Tests</option>
-    </select>
-
-    <label class="label">
-      Subgroup
-    </label>
-
-    <input id="bs">
-
-    <label class="label">
-      Language
-    </label>
-
-    <select id="bl">
-      <option>Hindi</option>
-      <option>English</option>
-      <option>Hinglish</option>
-    </select>
-
-    <label class="label">
-      Status
-    </label>
-
-    <select id="bt">
-      <option>Paid</option>
-      <option>Unpaid</option>
-    </select>
-
-    <button
-      class="btn green full"
-      onclick="saveBatch()"
-    >
-      Create Batch
-    </button>
-
-  `);
-}
-
-
-async function saveBatch() {
-
-  try {
-
-    await req(
-      "/api/admin/batches",
-      {
-        method: "POST",
-
-        body: JSON.stringify({
-
-          name: $("#bn").value,
-
-          category: $("#bc").value,
-
-          subgroup: $("#bs").value,
-
-          language: $("#bl").value,
-
-          status: $("#bt").value
-
-        })
-      }
+      `${type === "dpp" ? "DPP" : "Test"} uploaded successfully`
     );
 
-    alert("Batch created");
+    await content(S.batch.id);
 
-    closeModal();
+  } catch (err) {
+    console.error(
+      "UPLOAD ERROR:",
+      err
+    );
 
-    await manageBatches();
+    shell(
+      S.batch?.name || "Upload",
+      `
+        <div class="zx-card">
 
-  } catch (e) {
+          <div class="zx-empty">
 
-    alert(e.message);
-  }
-}
+            <div>
+              Upload failed
+            </div>
 
+            <div
+              style="
+                margin-top:10px;
+                color:#ff8498;
+              "
+            >
+              ${escapeHtml(err.message)}
+            </div>
 
-/* =====================================================
-   TOKEN MANAGEMENT
-   ===================================================== */
+            <br>
 
-async function manageTokens() {
-
-  try {
-
-    const [bs, ts] =
-      await Promise.all([
-        req("/api/admin/batches"),
-        req("/api/admin/uploader-tokens")
-      ]);
-
-    const localBatches =
-      bs.batches || [];
-
-    const tokens =
-      ts.tokens || [];
-
-    const list =
-      tokens.map(t => `
-
-        <div class="row">
-
-          <div>
-
-            <b>
-              ${esc(t.name)}
-            </b>
-
-            <small>
-
-              ${
-                (t.batches || []).length
-              }
-
-              assigned batch(es)
-
-            </small>
+            <button
+              class="zx-btn secondary"
+              onclick="content('${escapeAttr(
+                S.batch.id
+              )}')"
+            >
+              Back
+            </button>
 
           </div>
 
         </div>
-
-      `).join("");
-
-    modal(`
-
-      <h3>
-        Create Scoped Uploader Token
-      </h3>
-
-      <p class="muted">
-        This token will show only the assigned batches.
-      </p>
-
-      <label class="label">
-        Token Name
-      </label>
-
-      <input
-        id="tn"
-        placeholder="NEET Uploader"
-      >
-
-      <label class="label">
-        Batches
-      </label>
-
-      <select
-        id="tb"
-        multiple
-        size="8"
-      >
-
-        ${
-          localBatches.map(b => `
-
-            <option
-              value="${escAttr(b._id)}"
-            >
-              ${esc(b.name)}
-            </option>
-
-          `).join("")
-        }
-
-      </select>
-
-      <button
-        class="btn green full"
-        onclick="createToken()"
-      >
-        Create Token
-      </button>
-
-      <hr>
-
-      <h3>Existing Tokens</h3>
-
-      ${
-        list ||
-        "<p class='muted'>No scoped tokens yet.</p>"
-      }
-
-    `);
-
-  } catch (e) {
-
-    alert(e.message);
-  }
-}
-
-
-async function createToken() {
-
-  try {
-
-    const ids =
-      Array.from(
-        $("#tb").selectedOptions
-      ).map(o => o.value);
-
-    if (!ids.length) {
-      throw Error(
-        "Select at least one batch"
-      );
-    }
-
-    const d =
-      await req(
-        "/api/admin/uploader-tokens",
-        {
-          method: "POST",
-
-          body: JSON.stringify({
-
-            name:
-              $("#tn").value ||
-              "Batch Uploader",
-
-            batchIds: ids
-
-          })
-        }
-      );
-
-    alert(
-      "Token created.\n\n" +
-      d.token +
-      "\n\nSave it now."
+      `
     );
-
-    closeModal();
-
-  } catch (e) {
-
-    alert(e.message);
   }
 }
 
 
 /* =====================================================
-   MANUAL IMPORT
+   NORMALIZERS
    ===================================================== */
 
-function newContent() {
+function normalizeBatch(item) {
+  const id =
+    item._id ||
+    item.id ||
+    item.batchId ||
+    item.batch_id;
 
-  modal(`
+  const name =
+    item.name ||
+    item.title ||
+    item.batchName ||
+    "Unnamed Batch";
 
-    <h3>
-      Import ${
-        S.type === "test"
-          ? "Test"
-          : "DPP"
-      }
-    </h3>
-
-    <p class="muted">
-      Select a prepared JSON file.
-    </p>
-
-    <label class="label">
-      Title
-    </label>
-
-    <input
-      id="ct"
-      placeholder="Practice Test-01"
-    >
-
-    <label class="label">
-      Start Time
-    </label>
-
-    <input
-      id="cs"
-      type="datetime-local"
-    >
-
-    <label class="label">
-      Instructions
-    </label>
-
-    <textarea id="ci"></textarea>
-
-    <label class="label">
-      Questions JSON file
-    </label>
-
-    <input
-      id="cf"
-      type="file"
-      accept="application/json,.json"
-    >
-
-    <button
-      class="btn green full"
-      onclick="saveContent()"
-    >
-      Import & Upload
-    </button>
-
-  `);
+  return {
+    ...item,
+    id: String(id || ""),
+    name: String(name)
+  };
 }
 
 
-async function saveContent() {
+function normalizeItem(item) {
+  const id =
+    item._id ||
+    item.id ||
+    item.testId ||
+    item.test_id ||
+    item.dppId ||
+    item.dpp_id;
 
-  try {
+  const title =
+    item.title ||
+    item.name ||
+    item.testName ||
+    item.dppName ||
+    "Untitled";
 
-    const f =
-      $("#cf").files[0];
-
-    if (!f) {
-      throw Error(
-        "Select a JSON file"
-      );
-    }
-
-    const questions =
-      JSON.parse(
-        await f.text()
-      );
-
-    if (!Array.isArray(questions)) {
-      throw Error(
-        "JSON must contain an array of questions"
-      );
-    }
-
-    await req(
-      `/api/admin/batches/${S.batch._id}/content/${S.type}`,
-      {
-        method: "POST",
-
-        body: JSON.stringify({
-
-          title:
-            $("#ct").value,
-
-          startTime:
-            $("#cs").value || null,
-
-          instructions:
-            $("#ci").value,
-
-          questions,
-
-          published: true
-
-        })
-      }
-    );
-
-    alert("Imported successfully");
-
-    closeModal();
-
-    await content(S.batch._id);
-
-  } catch (e) {
-
-    alert(e.message);
-  }
+  return {
+    ...item,
+    id: String(id || ""),
+    title: String(title)
+  };
 }
 
 
 /* =====================================================
-   PUBLISH
+   QUESTION EXTRACTION
    ===================================================== */
 
-async function publish(id) {
+function extractQuestions(source) {
+  const candidates = [
+    source.questions,
+    source.questionList,
+    source.data?.questions,
+    source.data?.questionList,
+    source.test?.questions,
+    source.test?.questionList
+  ];
 
-  try {
-
-    await req(
-      "/api/admin/content/" +
-      id +
-      "/publish",
-      {
-        method: "POST"
-      }
-    );
-
-    await content(S.batch._id);
-
-  } catch (e) {
-
-    alert(e.message);
+  for (const value of candidates) {
+    if (Array.isArray(value)) {
+      return value;
+    }
   }
-}
 
-
-/* =====================================================
-   MODAL
-   ===================================================== */
-
-function modal(html) {
-
-  closeModal();
-
-  const m =
-    document.createElement("div");
-
-  m.id = "modal";
-
-  m.style.cssText = `
-    position:fixed;
-    inset:0;
-    z-index:9999;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:20px;
-    background:rgba(0,0,0,.65);
-    backdrop-filter:blur(8px);
-    overflow:auto;
-  `;
-
-  m.innerHTML = `
-
-    <div
-      class="card"
-      style="
-        width:100%;
-        max-width:600px;
-        max-height:90vh;
-        overflow:auto;
-        background:#0f172a;
-      "
-    >
-
-      <div style="text-align:right">
-
-        <button
-          class="btn gray"
-          onclick="closeModal()"
-        >
-          Close
-        </button>
-
-      </div>
-
-      ${html}
-
-    </div>
-
-  `;
-
-  document.body.appendChild(m);
-}
-
-
-function closeModal() {
-
-  $("#modal")?.remove();
-
+  return [];
 }
 
 
@@ -1786,87 +1129,35 @@ function closeModal() {
    ===================================================== */
 
 function logout() {
-
-  localStorage.removeItem(
-    "zx_admin_token"
-  );
+  localStorage.removeItem("zx_admin_token");
 
   S.token = "";
+  S.batch = null;
+  S.batches = [];
+  S.sourceItems = [];
 
   showLogin();
 }
 
 
 /* =====================================================
-   ESCAPE
+   ESCAPE HELPERS
    ===================================================== */
 
-function esc(v) {
-
-  return String(v ?? "")
-    .replace(
-      /[&<>\"']/g,
-      m => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "\"": "&quot;",
-        "'": "&#039;"
-      }[m])
-    );
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 
-function escAttr(v) {
-
-  return String(v ?? "")
-    .replace(
-      /['\\]/g,
-      m => "\\" + m
-    );
-}
-
-
-/* =====================================================
-   GLOBALS
-   ===================================================== */
-
-Object.assign(window, {
-
-  doLogin,
-  home,
-  logout,
-  batches,
-  drawBatches,
-  manageBatches,
-  newBatch,
-  saveBatch,
-  manageTokens,
-  createToken,
-  content,
-  uploadSourceItem,
-  newContent,
-  saveContent,
-  publish,
-  modal,
-  closeModal
-
-});
-
-
-/* =====================================================
-   LOGIN FORM
-   ===================================================== */
-
-const loginForm =
-  $("#login-form");
-
-if (loginForm) {
-
-  loginForm.addEventListener(
-    "submit",
-    doLogin
-  );
+function escapeAttr(value) {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'");
 }
 
 
@@ -1874,14 +1165,41 @@ if (loginForm) {
    START
    ===================================================== */
 
-if (S.token) {
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
 
-  showApp();
+    const form = $("#login-form");
 
-  home();
+    if (form) {
+      form.addEventListener(
+        "submit",
+        doLogin
+      );
+    }
 
-} else {
+    if (S.token) {
+      showApp();
+      home().catch(() => {
+        logout();
+      });
+    } else {
+      showLogin();
+    }
 
-  showLogin();
+  }
+);
 
-}
+
+/* =====================================================
+   GLOBALS
+   ===================================================== */
+
+window.doLogin = doLogin;
+window.home = home;
+window.batches = batches;
+window.content = content;
+window.filterBatches = filterBatches;
+window.filterContent = filterContent;
+window.uploadSourceItem = uploadSourceItem;
+window.logout = logout;
