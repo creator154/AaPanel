@@ -8,141 +8,255 @@ const S = {
 };
 
 const API = () =>
-  ((window.ZX_CONFIG && window.ZX_CONFIG.API_BASE) || "").replace(/\/$/, "");
+  ((window.ZX_CONFIG && window.ZX_CONFIG.API_BASE) || "")
+    .replace(/\/$/, "");
+
 
 async function req(path, opt = {}) {
+
   const headers = {
     "Content-Type": "application/json",
     ...(opt.headers || {})
   };
 
   if (S.token) {
-    headers.Authorization = "Bearer " + S.token;
+    headers.Authorization =
+      "Bearer " + S.token;
   }
 
-  const r = await fetch(API() + path, {
-    ...opt,
-    headers
-  });
+  const r = await fetch(
+    API() + path,
+    {
+      ...opt,
+      headers
+    }
+  );
 
-  const d = await r.json().catch(() => ({}));
+  const d =
+    await r.json().catch(() => ({}));
 
   if (!r.ok) {
-    throw Error(d.message || "Request failed");
+    throw Error(
+      d.message ||
+      "Request failed"
+    );
   }
 
   return d;
 }
 
+
+/* =====================================================
+   LOGIN
+   ===================================================== */
+
 function login() {
+
   document.body.innerHTML = `
     <div class="top">
       <div class="card login">
-        <h2>Test Uploader Login</h2>
 
-        <label class="label">Auth Token</label>
+        <h2>
+          Test Uploader Login
+        </h2>
+
+        <label class="label">
+          Auth Token
+        </label>
 
         <div class="pass">
+
           <input
             id="tok"
             type="password"
             placeholder="Enter your auth token"
           >
-          <button class="eye" onclick="toggleToken()">👁</button>
+
+          <button
+            class="eye"
+            onclick="toggleToken()"
+          >
+            👁
+          </button>
+
         </div>
 
-        <label class="label">Role</label>
+        <label class="label">
+          Role
+        </label>
 
         <select>
-          <option>Batch Uploader</option>
+          <option>
+            Batch Uploader
+          </option>
         </select>
 
-        <button class="btn full" onclick="doLogin()">Login</button>
+        <button
+          class="btn full"
+          onclick="doLogin()"
+        >
+          Login
+        </button>
+
       </div>
     </div>
   `;
 }
 
+
 function toggleToken() {
+
   const i = $("#tok");
 
   if (i) {
-    i.type = i.type === "password" ? "text" : "password";
+    i.type =
+      i.type === "password"
+        ? "text"
+        : "password";
   }
 }
 
+
 async function doLogin() {
+
   try {
-    const token = $("#tok").value.trim();
+
+    const token =
+      $("#tok").value.trim();
 
     if (!token) {
-      return alert("Enter your auth token");
+      return alert(
+        "Enter your auth token"
+      );
     }
 
-    const r = await fetch(API() + "/api/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        authToken: token
-      })
-    });
 
-    const d = await r.json();
+    const r =
+      await fetch(
+        API() + "/api/auth/login",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+              authToken:
+                token
+            })
+        }
+      );
+
+
+    const d =
+      await r.json();
+
 
     if (!r.ok) {
-      throw Error(d.message || "Login failed");
+      throw Error(
+        d.message ||
+        "Login failed"
+      );
     }
 
-    S.token = d.token;
+
+    S.token =
+      d.token;
+
 
     localStorage.setItem(
       "zx_admin_token",
       S.token
     );
 
+
     home();
 
   } catch (e) {
-    alert(e.message || "Login failed");
+
+    alert(
+      e.message ||
+      "Login failed"
+    );
+
   }
 }
 
-function shell(title, body) {
+
+/* =====================================================
+   SHELL
+   ===================================================== */
+
+function shell(
+  title,
+  body
+) {
+
   document.body.innerHTML = `
+
     <div class="top">
+
       <div class="wrap">
 
         <div class="header">
-          <h2>${title}</h2>
 
-          <button class="btn red" onclick="logout()">
+          <h2>
+            ${esc(title)}
+          </h2>
+
+          <button
+            class="btn red"
+            onclick="logout()"
+          >
             ↪ Logout
           </button>
+
         </div>
 
         ${body}
 
       </div>
+
     </div>
+
   `;
 }
 
+
+/* =====================================================
+   HOME
+   ===================================================== */
+
 async function home() {
+
   try {
 
-    const [s, me] = await Promise.all([
-      req("/api/admin/stats"),
-      req("/api/admin/me")
-    ]);
+    const [
+      s,
+      me
+    ] =
+      await Promise.all([
+        req(
+          "/api/admin/stats"
+        ),
+        req(
+          "/api/admin/me"
+        )
+      ]);
 
-    const isMaster = me.user.scope === "all";
+
+    const isMaster =
+      me.user.scope === "all";
+
 
     shell(
       "Test Series Uploader",
 
       `
+
       <div class="hero">
 
         <h1>
@@ -155,60 +269,82 @@ async function home() {
         </p>
 
         <div class="scope">
-          🔐 ${esc(me.user.username)}
+
+          🔐
+          ${esc(me.user.username)}
+
           •
-          ${isMaster ? "All batches" : "Assigned batches only"}
+
+          ${
+            isMaster
+              ? "All batches"
+              : "Assigned batches only"
+          }
+
         </div>
 
       </div>
 
+
       ${
         isMaster
           ? `
-            <div class="admin-tools">
 
-              <button
-                class="btn gray"
-                onclick="manageBatches()"
-              >
-                ⚙ Manage Batches
-              </button>
+          <div class="admin-tools">
 
-              <button
-                class="btn gray"
-                onclick="manageTokens()"
-              >
-                🔑 Uploader Tokens
-              </button>
+            <button
+              class="btn gray"
+              onclick="manageBatches()"
+            >
+              ⚙ Manage Batches
+            </button>
 
-            </div>
+            <button
+              class="btn gray"
+              onclick="manageTokens()"
+            >
+              🔑 Uploader Tokens
+            </button>
+
+          </div>
+
           `
           : ""
       }
+
 
       <div class="stats">
 
         <div class="stat">
           Batches<br>
-          <b>${s.batches}</b>
+          <b>
+            ${s.batches}
+          </b>
         </div>
 
         <div class="stat">
           Tests<br>
-          <b>${s.tests}</b>
+          <b>
+            ${s.tests}
+          </b>
         </div>
 
         <div class="stat">
           DPPs<br>
-          <b>${s.dpps}</b>
+          <b>
+            ${s.dpps}
+          </b>
         </div>
 
         <div class="stat">
           Published<br>
-          <b>${s.published}</b>
+          <b>
+            ${s.published}
+          </b>
         </div>
 
       </div>
+
 
       <div class="tiles">
 
@@ -216,55 +352,106 @@ async function home() {
           class="tile blue"
           onclick="batches('test')"
         >
-          <div class="icon">📄</div>
-          <h2>Tests</h2>
-          <p>Upload regular tests</p>
+
+          <div class="icon">
+            📄
+          </div>
+
+          <h2>
+            Tests
+          </h2>
+
+          <p>
+            Upload regular tests
+          </p>
+
         </div>
+
 
         <div
           class="tile green"
           onclick="batches('dpp')"
         >
-          <div class="icon">📚</div>
-          <h2>DPPs</h2>
-          <p>Upload daily practice problems</p>
+
+          <div class="icon">
+            📚
+          </div>
+
+          <h2>
+            DPPs
+          </h2>
+
+          <p>
+            Upload daily practice problems
+          </p>
+
         </div>
 
       </div>
+
       `
     );
 
   } catch (e) {
+
+    console.error(e);
+
     logout();
+
   }
 }
+
+
+/* =====================================================
+   SOURCE BATCHES
+   ===================================================== */
 
 async function batches(type) {
 
   try {
 
-    S.type = type;
+    S.type =
+      type;
 
-    const data = await req(
-      "/api/admin/batches"
+
+    /*
+      IMPORTANT:
+      Batches now come from the
+      authorized source account.
+    */
+
+    const data =
+      await req(
+        "/api/admin/source/batches"
+      );
+
+
+    console.log(
+      "SOURCE BATCH RESPONSE:",
+      data
     );
 
-    S.batches = data.batches || [];
 
-    const me = await req(
-      "/api/admin/me"
-    );
+    S.batches =
+      normalizeBatches(
+        data
+      );
+
 
     shell(
-      "Your Batches",
+      type === "test"
+        ? "Your Tests Batches"
+        : "Your DPP Batches",
 
       `
+
       <button
         class="btn gray"
         onclick="home()"
       >
         ← Back to Dashboard
       </button>
+
 
       <div class="bar">
 
@@ -274,91 +461,229 @@ async function batches(type) {
           oninput="drawBatches()"
         >
 
-        ${
-          me.user.scope === "all"
-            ? `
-              <button
-                class="btn green"
-                onclick="newBatch()"
-              >
-                + Add Batch
-              </button>
-            `
-            : ""
-        }
-
       </div>
 
-      <div id="list"></div>
+
+      <div
+        id="list"
+      ></div>
+
       `
     );
+
 
     drawBatches();
 
   } catch (e) {
-    alert(e.message);
+
+    console.error(e);
+
+    alert(
+      e.message ||
+      "Failed to load source batches"
+    );
+
   }
 }
+
+
+/* =====================================================
+   NORMALIZE BATCH RESPONSE
+   ===================================================== */
+
+function normalizeBatches(data) {
+
+  let list = [];
+
+
+  if (
+    Array.isArray(data)
+  ) {
+
+    list =
+      data;
+
+  } else if (
+    Array.isArray(data.batches)
+  ) {
+
+    list =
+      data.batches;
+
+  } else if (
+    Array.isArray(data.data)
+  ) {
+
+    list =
+      data.data;
+
+  } else if (
+    data.data &&
+    Array.isArray(data.data.batches)
+  ) {
+
+    list =
+      data.data.batches;
+
+  } else if (
+    data.data &&
+    Array.isArray(data.data.data)
+  ) {
+
+    list =
+      data.data.data;
+
+  }
+
+
+  return list
+    .map((b, index) => {
+
+      const id =
+        b._id ||
+        b.id ||
+        b.batchId;
+
+
+      const name =
+        b.name ||
+        b.batchName ||
+        b.title ||
+        `Batch ${index + 1}`;
+
+
+      return {
+        ...b,
+
+        _id:
+          String(id || ""),
+
+        name:
+          String(name)
+
+      };
+
+    })
+    .filter(
+      b => b._id
+    );
+}
+
+
+/* =====================================================
+   DRAW BATCHES
+   ===================================================== */
 
 function drawBatches() {
 
   const q =
-    ($("#search")?.value || "").toLowerCase();
+    (
+      $("#search")?.value ||
+      ""
+    )
+      .toLowerCase()
+      .trim();
 
-  const list = S.batches.filter(
-    b =>
-      (b.name || "")
-        .toLowerCase()
-        .includes(q)
-  );
 
-  $("#list").innerHTML =
-    list.map(
-      b => `
-      <div class="row">
+  const list =
+    S.batches.filter(
+      b =>
+        (
+          b.name ||
+          ""
+        )
+          .toLowerCase()
+          .includes(q)
+    );
 
-        <div>
-          <b>${esc(b.name)}</b>
 
-          <small>
-            Status: ${esc(b.status)}
-            •
-            ${esc(b.language || "")}
-          </small>
+  const el =
+    $("#list");
+
+
+  if (!el) {
+    return;
+  }
+
+
+  el.innerHTML =
+    list
+      .map(
+        b => `
+
+        <div class="row">
+
+          <div>
+
+            <b>
+              ${esc(b.name)}
+            </b>
+
+            <small>
+              ${
+                esc(
+                  b.language ||
+                  b.status ||
+                  ""
+                )
+              }
+            </small>
+
+          </div>
+
+
+          <div class="actions">
+
+            <button
+              class="btn"
+              onclick="content('${escAttr(b._id)}')"
+            >
+              View ${
+                S.type === "test"
+                  ? "Tests"
+                  : "DPPs"
+              }
+            </button>
+
+          </div>
+
         </div>
 
-        <div class="actions">
+        `
+      )
+      .join("");
 
-          <button
-            class="btn"
-            onclick="content('${b._id}')"
-          >
-            View ${
-              S.type === "test"
-                ? "Tests"
-                : "DPPs"
-            }
-          </button>
 
-        </div>
+  if (!list.length) {
 
-      </div>
-      `
-    ).join("") ||
-    "<p>No batches assigned to this token.</p>";
+    el.innerHTML =
+      "<p>No batches found.</p>";
+
+  }
 }
+
+
+/* =====================================================
+   OLD LOCAL BATCH MANAGEMENT
+   MASTER ONLY
+   ===================================================== */
 
 function newBatch() {
 
   modal(`
 
-    <h3>Add Batch</h3>
+    <h3>
+      Add Local Batch
+    </h3>
 
     <label class="label">
       Batch Name
     </label>
 
-    <input id="bn">
+    <input
+      id="bn"
+    >
+
 
     <label class="label">
       Category
@@ -366,19 +691,37 @@ function newBatch() {
 
     <select id="bc">
 
-      <option>Boards Level Tests</option>
-      <option>JEE Tests</option>
-      <option>NEET Tests</option>
-      <option>DROPPER Tests</option>
-      <option>Other Batch Tests</option>
+      <option>
+        Boards Level Tests
+      </option>
+
+      <option>
+        JEE Tests
+      </option>
+
+      <option>
+        NEET Tests
+      </option>
+
+      <option>
+        DROPPER Tests
+      </option>
+
+      <option>
+        Other Batch Tests
+      </option>
 
     </select>
+
 
     <label class="label">
       Subgroup
     </label>
 
-    <input id="bs">
+    <input
+      id="bs"
+    >
+
 
     <label class="label">
       Language
@@ -386,11 +729,20 @@ function newBatch() {
 
     <select id="bl">
 
-      <option>Hindi</option>
-      <option>English</option>
-      <option>Hinglish</option>
+      <option>
+        Hindi
+      </option>
+
+      <option>
+        English
+      </option>
+
+      <option>
+        Hinglish
+      </option>
 
     </select>
+
 
     <label class="label">
       Status
@@ -398,10 +750,16 @@ function newBatch() {
 
     <select id="bt">
 
-      <option>Paid</option>
-      <option>Unpaid</option>
+      <option>
+        Paid
+      </option>
+
+      <option>
+        Unpaid
+      </option>
 
     </select>
+
 
     <button
       class="btn green full"
@@ -413,6 +771,7 @@ function newBatch() {
   `);
 }
 
+
 async function saveBatch() {
 
   try {
@@ -420,78 +779,135 @@ async function saveBatch() {
     await req(
       "/api/admin/batches",
       {
-        method: "POST",
 
-        body: JSON.stringify({
+        method:
+          "POST",
 
-          name: $("#bn").value,
+        body:
+          JSON.stringify({
 
-          category: $("#bc").value,
+            name:
+              $("#bn").value,
 
-          subgroup: $("#bs").value,
+            category:
+              $("#bc").value,
 
-          language: $("#bl").value,
+            subgroup:
+              $("#bs").value,
 
-          status: $("#bt").value
+            language:
+              $("#bl").value,
 
-        })
+            status:
+              $("#bt").value
+
+          })
+
       }
     );
 
+
     closeModal();
 
-    batches(S.type);
+    batches(
+      S.type
+    );
 
   } catch (e) {
 
-    alert(e.message);
+    alert(
+      e.message
+    );
 
   }
 }
 
+
 async function manageBatches() {
+
+  /*
+    Master can still create
+    local batches if needed.
+  */
+
   batches("test");
+
 }
+
+
+/* =====================================================
+   TOKEN MANAGEMENT
+   ===================================================== */
 
 async function manageTokens() {
 
   try {
 
-    const [bs, ts] = await Promise.all([
-      req("/api/admin/batches"),
-      req("/api/admin/uploader-tokens")
-    ]);
+    const [
+      bs,
+      ts
+    ] =
+      await Promise.all([
 
-    const batches =
+        req(
+          "/api/admin/batches"
+        ),
+
+        req(
+          "/api/admin/uploader-tokens"
+        )
+
+      ]);
+
+
+    const localBatches =
       bs.batches || [];
+
 
     const tokens =
       ts.tokens || [];
 
+
     const list =
-      tokens.map(
-        t => `
-        <div class="row">
+      tokens
+        .map(
+          t => `
 
-          <div>
+          <div class="row">
 
-            <b>
-              ${esc(t.name)}
-            </b>
+            <div>
 
-            <small>
-              ${t.batches.length}
-              assigned batch(es):
-              ${t.batches
-                .map(b => esc(b.name))
-                .join(", ")}
-            </small>
+              <b>
+                ${esc(t.name)}
+              </b>
+
+              <small>
+
+                ${
+                  t.batches.length
+                }
+
+                assigned batch(es):
+
+                ${
+                  t.batches
+                    .map(
+                      b =>
+                        esc(b.name)
+                    )
+                    .join(", ")
+                }
+
+              </small>
+
+            </div>
 
           </div>
 
-        </div>
-        `
-      ).join("");
+          `
+        )
+        .join("");
+
 
     modal(`
 
@@ -499,10 +915,14 @@ async function manageTokens() {
         Create Scoped Uploader Token
       </h3>
 
+
       <p class="muted">
+
         This token will automatically
         show only the batches you select.
+
       </p>
+
 
       <label class="label">
         Token Name
@@ -513,9 +933,11 @@ async function manageTokens() {
         placeholder="NEET Uploader"
       >
 
+
       <label class="label">
         Batches
       </label>
+
 
       <select
         id="tb"
@@ -524,16 +946,23 @@ async function manageTokens() {
       >
 
         ${
-          batches.map(
-            b => `
-            <option value="${b._id}">
-              ${esc(b.name)}
-            </option>
-            `
-          ).join("")
+          localBatches
+            .map(
+              b => `
+
+              <option
+                value="${escAttr(b._id)}"
+              >
+                ${esc(b.name)}
+              </option>
+
+              `
+            )
+            .join("")
         }
 
       </select>
+
 
       <button
         class="btn green full"
@@ -542,11 +971,14 @@ async function manageTokens() {
         Create Token
       </button>
 
+
       <hr>
+
 
       <h3>
         Existing Tokens
       </h3>
+
 
       ${
         list ||
@@ -557,10 +989,13 @@ async function manageTokens() {
 
   } catch (e) {
 
-    alert(e.message);
+    alert(
+      e.message
+    );
 
   }
 }
+
 
 async function createToken() {
 
@@ -569,30 +1004,45 @@ async function createToken() {
     const ids =
       Array.from(
         $("#tb").selectedOptions
-      ).map(
-        o => o.value
-      );
+      )
+        .map(
+          o =>
+            o.value
+        );
+
 
     if (!ids.length) {
+
       throw Error(
         "Select at least one batch"
       );
+
     }
 
-    const d = await req(
-      "/api/admin/uploader-tokens",
-      {
-        method: "POST",
 
-        body: JSON.stringify({
-          name:
-            $("#tn").value ||
-            "Batch Uploader",
+    const d =
+      await req(
+        "/api/admin/uploader-tokens",
+        {
 
-          batchIds: ids
-        })
-      }
-    );
+          method:
+            "POST",
+
+          body:
+            JSON.stringify({
+
+              name:
+                $("#tn").value ||
+                "Batch Uploader",
+
+              batchIds:
+                ids
+
+            })
+
+        }
+      );
+
 
     alert(
       "Token created.\n\n" +
@@ -600,69 +1050,82 @@ async function createToken() {
       "\n\nSave it now."
     );
 
+
     closeModal();
 
   } catch (e) {
 
-    alert(e.message);
+    alert(
+      e.message
+    );
 
   }
 }
 
-async function content(id) {
+
+/* =====================================================
+   SOURCE CONTENT
+   ===================================================== */
+
+async function content(
+  sourceBatchId
+) {
 
   try {
 
     S.batch =
       S.batches.find(
-        b => b._id === id
+        b =>
+          String(b._id) ===
+          String(sourceBatchId)
       );
 
-    const d =
-      await req(
-        "/api/admin/batches/" +
-        id +
-        "/content/" +
-        S.type
+
+    if (!S.batch) {
+
+      throw Error(
+        "Batch not found"
       );
+
+    }
+
+
+    const endpoint =
+      S.type === "test"
+        ? `/api/admin/source/batches/${encodeURIComponent(
+            sourceBatchId
+          )}/tests`
+        : `/api/admin/source/batches/${encodeURIComponent(
+            sourceBatchId
+          )}/dpps`;
+
+
+    const data =
+      await req(
+        endpoint
+      );
+
+
+    console.log(
+      "SOURCE CONTENT RESPONSE:",
+      data
+    );
+
 
     const items =
-      d.items || [];
-
-    const me =
-      await req(
-        "/api/admin/me"
+      normalizeItems(
+        data
       );
 
-    const rows =
-      items.map(itemRow).join("");
-
-    const add =
-      me.user.scope === "all"
-        ? `
-          <button
-            class="btn green"
-            style="margin-left:8px"
-            onclick="newContent()"
-          >
-            + Import ${
-              S.type === "test"
-                ? "Test"
-                : "DPP"
-            }
-          </button>
-        `
-        : "";
 
     shell(
-      "Available " +
-      (
-        S.type === "test"
-          ? "Tests"
-          : "DPPs"
-      ),
+
+      S.type === "test"
+        ? "Available Tests"
+        : "Available DPPs",
 
       `
+
       <button
         class="btn gray"
         onclick="batches('${S.type}')"
@@ -670,119 +1133,501 @@ async function content(id) {
         ← Back to Batches
       </button>
 
-      ${add}
 
       <div class="card">
 
         <b>
-          ${esc(S.batch.name)}
+          ${esc(
+            S.batch.name
+          )}
         </b>
 
+
         <div class="notice">
-          Available: ${items.length}
-          •
-          Uploaded:
-          ${
-            items.filter(
-              x => x.published
-            ).length
-          }
+
+          Available:
+          ${items.length}
+
         </div>
+
 
         <div id="items">
 
           ${
-            rows ||
-            "<p>No content available yet.</p>"
+            items.length
+              ? items
+                  .map(
+                    itemRow
+                  )
+                  .join("")
+              : "<p>No content available.</p>"
           }
 
         </div>
 
       </div>
+
       `
     );
 
   } catch (e) {
 
-    alert(e.message);
+    console.error(e);
+
+    alert(
+      e.message ||
+      "Failed to load content"
+    );
 
   }
 }
 
+
+/* =====================================================
+   NORMALIZE TEST / DPP RESPONSE
+   ===================================================== */
+
+function normalizeItems(
+  data
+) {
+
+  let list = [];
+
+
+  if (
+    Array.isArray(data)
+  ) {
+
+    list =
+      data;
+
+  } else if (
+    Array.isArray(data.items)
+  ) {
+
+    list =
+      data.items;
+
+  } else if (
+    Array.isArray(data.tests)
+  ) {
+
+    list =
+      data.tests;
+
+  } else if (
+    Array.isArray(data.dpps)
+  ) {
+
+    list =
+      data.dpps;
+
+  } else if (
+    Array.isArray(data.data)
+  ) {
+
+    list =
+      data.data;
+
+  } else if (
+    data.data &&
+    Array.isArray(
+      data.data.items
+    )
+  ) {
+
+    list =
+      data.data.items;
+
+  } else if (
+    data.data &&
+    Array.isArray(
+      data.data.tests
+    )
+  ) {
+
+    list =
+      data.data.tests;
+
+  } else if (
+    data.data &&
+    Array.isArray(
+      data.data.dpps
+    )
+  ) {
+
+    list =
+      data.data.dpps;
+
+  }
+
+
+  return list.map(
+    (x, index) => ({
+
+      ...x,
+
+      _sourceId:
+        String(
+          x._id ||
+          x.id ||
+          x.testId ||
+          x.dppId ||
+          ""
+        ),
+
+      _title:
+        String(
+          x.title ||
+          x.name ||
+          x.testName ||
+          x.dppName ||
+          `Item ${index + 1}`
+        )
+
+    })
+  )
+  .filter(
+    x =>
+      x._sourceId
+  );
+}
+
+
+/* =====================================================
+   ITEM ROW
+   ===================================================== */
+
 function itemRow(x) {
 
   return `
-  <div class="row">
 
-    <div>
+    <div class="row">
 
-      <b>
-        ${esc(x.title)}
-      </b>
+      <div>
 
-      <small>
-        Questions:
-        ${x.totalQuestions || 0}
+        <b>
+          ${esc(x._title)}
+        </b>
 
-        ${
-          x.startTime
-            ? " • Start Time: " +
-              new Date(
-                x.startTime
-              ).toLocaleString()
-            : ""
-        }
 
-      </small>
+        <small>
 
-    </div>
+          ${
+            x.totalQuestions ||
+            x.questionCount ||
+            (
+              Array.isArray(
+                x.questions
+              )
+                ? x.questions.length
+                : 0
+            ) ||
+            0
+          }
 
-    <div class="actions">
+          Questions
 
-      ${
-        x.published
+        </small>
 
-          ? `
-            <span class="btn green">
-              ✓ Uploaded
-            </span>
-          `
+      </div>
 
-          : `
-            <button
-              class="btn green"
-              onclick="publish('${x._id}')"
-            >
-              Upload ${
-                S.type === "test"
-                  ? "Test"
-                  : "DPP"
-              }
-            </button>
-          `
-      }
+
+      <div class="actions">
+
+        <button
+          class="btn green"
+          onclick="uploadSourceItem('${escAttr(
+            x._sourceId
+          )}')"
+        >
+          Upload
+        </button>
+
+      </div>
 
     </div>
 
-  </div>
   `;
 }
+
+
+/* =====================================================
+   SOURCE ITEM DETAILS
+   ===================================================== */
+
+async function uploadSourceItem(
+  sourceId
+) {
+
+  try {
+
+    if (!sourceId) {
+
+      throw Error(
+        "Invalid source item ID"
+      );
+
+    }
+
+
+    const data =
+      await req(
+        `/api/admin/source/tests/${encodeURIComponent(
+          sourceId
+        )}`
+      );
+
+
+    console.log(
+      "SOURCE ITEM DETAILS:",
+      data
+    );
+
+
+    const item =
+      extractDetails(
+        data
+      );
+
+
+    if (!item) {
+
+      throw Error(
+        "Test details not found"
+      );
+
+    }
+
+
+    const questions =
+      extractQuestions(
+        item
+      );
+
+
+    if (!Array.isArray(
+      questions
+    )) {
+
+      throw Error(
+        "Questions were not found in source response"
+      );
+
+    }
+
+
+    const title =
+      item.title ||
+      item.name ||
+      item.testName ||
+      "Imported Test";
+
+
+    await req(
+
+      `/api/admin/batches/${encodeURIComponent(
+        S.batch._id
+      )}/content/${S.type}`,
+
+      {
+
+        method:
+          "POST",
+
+        body:
+          JSON.stringify({
+
+            title,
+
+            startTime:
+              item.startTime ||
+              item.startDate ||
+              null,
+
+            instructions:
+              item.instructions ||
+              "",
+
+            questions,
+
+            published:
+              true
+
+          })
+
+      }
+
+    );
+
+
+    alert(
+      "Uploaded successfully"
+    );
+
+
+    content(
+      S.batch._id
+    );
+
+  } catch (e) {
+
+    console.error(e);
+
+    alert(
+      e.message ||
+      "Upload failed"
+    );
+
+  }
+}
+
+
+/* =====================================================
+   EXTRACT DETAILS
+   ===================================================== */
+
+function extractDetails(
+  data
+) {
+
+  if (
+    data &&
+    data.data &&
+    !Array.isArray(
+      data.data
+    )
+  ) {
+
+    if (
+      data.data.test
+    ) {
+
+      return data.data.test;
+
+    }
+
+    if (
+      data.data.dpp
+    ) {
+
+      return data.data.dpp;
+
+    }
+
+    return data.data;
+
+  }
+
+
+  if (
+    data &&
+    data.test
+  ) {
+
+    return data.test;
+
+  }
+
+
+  if (
+    data &&
+    data.dpp
+  ) {
+
+    return data.dpp;
+
+  }
+
+
+  return data;
+}
+
+
+/* =====================================================
+   EXTRACT QUESTIONS
+   ===================================================== */
+
+function extractQuestions(
+  item
+) {
+
+  if (
+    Array.isArray(
+      item.questions
+    )
+  ) {
+
+    return item.questions;
+
+  }
+
+
+  if (
+    item.data &&
+    Array.isArray(
+      item.data.questions
+    )
+  ) {
+
+    return item.data.questions;
+
+  }
+
+
+  if (
+    item.test &&
+    Array.isArray(
+      item.test.questions
+    )
+  ) {
+
+    return item.test.questions;
+
+  }
+
+
+  if (
+    item.dpp &&
+    Array.isArray(
+      item.dpp.questions
+    )
+  ) {
+
+    return item.dpp.questions;
+
+  }
+
+
+  return [];
+}
+
+
+/* =====================================================
+   OLD MANUAL IMPORT
+   ===================================================== */
 
 function newContent() {
 
   modal(`
 
     <h3>
+
       Import ${
         S.type === "test"
           ? "Test"
           : "DPP"
       }
+
     </h3>
 
+
     <p class="muted">
+
       Select a prepared JSON file.
+
     </p>
+
 
     <label class="label">
       Title
@@ -793,6 +1638,7 @@ function newContent() {
       placeholder="Practice Test-01"
     >
 
+
     <label class="label">
       Start Time
     </label>
@@ -802,11 +1648,15 @@ function newContent() {
       type="datetime-local"
     >
 
+
     <label class="label">
       Instructions
     </label>
 
-    <textarea id="ci"></textarea>
+    <textarea
+      id="ci"
+    ></textarea>
+
 
     <label class="label">
       Questions JSON file
@@ -818,6 +1668,7 @@ function newContent() {
       accept="application/json,.json"
     >
 
+
     <button
       class="btn green full"
       onclick="saveContent()"
@@ -828,6 +1679,7 @@ function newContent() {
   `);
 }
 
+
 async function saveContent() {
 
   try {
@@ -835,53 +1687,78 @@ async function saveContent() {
     const f =
       $("#cf").files[0];
 
+
     if (!f) {
+
       throw Error(
         "Select a JSON file"
       );
+
     }
+
 
     const text =
       await f.text();
 
-    const questions =
-      JSON.parse(text);
 
-    if (!Array.isArray(questions)) {
+    const questions =
+      JSON.parse(
+        text
+      );
+
+
+    if (
+      !Array.isArray(
+        questions
+      )
+    ) {
+
       throw Error(
         "JSON must contain an array of questions"
       );
+
     }
 
+
     await req(
+
       "/api/admin/batches/" +
       S.batch._id +
       "/content/" +
       S.type,
+
       {
-        method: "POST",
 
-        body: JSON.stringify({
+        method:
+          "POST",
 
-          title:
-            $("#ct").value,
+        body:
+          JSON.stringify({
 
-          startTime:
-            $("#cs").value ||
-            null,
+            title:
+              $("#ct").value,
 
-          instructions:
-            $("#ci").value,
+            startTime:
+              $("#cs").value ||
+              null,
 
-          questions,
+            instructions:
+              $("#ci").value,
 
-          published: true
+            questions,
 
-        })
+            published:
+              true
+
+          })
+
       }
+
     );
 
+
     closeModal();
+
 
     content(
       S.batch._id
@@ -889,39 +1766,77 @@ async function saveContent() {
 
   } catch (e) {
 
-    alert(e.message);
+    alert(
+      e.message
+    );
 
   }
 }
 
-async function publish(id) {
 
-  await req(
-    "/api/admin/content/" +
-    id +
-    "/publish",
-    {
-      method: "POST"
-    }
-  );
+/* =====================================================
+   PUBLISH
+   ===================================================== */
 
-  content(
-    S.batch._id
-  );
+async function publish(
+  id
+) {
+
+  try {
+
+    await req(
+      "/api/admin/content/" +
+      id +
+      "/publish",
+      {
+        method:
+          "POST"
+      }
+    );
+
+
+    content(
+      S.batch._id
+    );
+
+  } catch (e) {
+
+    alert(
+      e.message
+    );
+
+  }
 }
 
-function modal(html) {
+
+/* =====================================================
+   MODAL
+   ===================================================== */
+
+function modal(
+  html
+) {
 
   const m =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
-  m.id = "modal";
-  m.className = "modal";
+
+  m.id =
+    "modal";
+
+  m.className =
+    "modal";
+
 
   m.innerHTML = `
+
     <div class="card">
 
-      <div style="text-align:right">
+      <div
+        style="text-align:right"
+      >
 
         <button
           class="btn gray"
@@ -935,14 +1850,26 @@ function modal(html) {
       ${html}
 
     </div>
+
   `;
 
-  document.body.appendChild(m);
+
+  document.body.appendChild(
+    m
+  );
 }
 
+
 function closeModal() {
+
   $("#modal")?.remove();
+
 }
+
+
+/* =====================================================
+   LOGOUT
+   ===================================================== */
 
 function logout() {
 
@@ -950,52 +1877,124 @@ function logout() {
     "zx_admin_token"
   );
 
-  S.token = "";
+
+  S.token =
+    "";
+
 
   login();
+
 }
+
+
+/* =====================================================
+   ESCAPE
+   ===================================================== */
 
 function esc(v) {
 
-  return String(v ?? "")
+  return String(
+    v ?? ""
+  )
     .replace(
       /[&<>\"']/g,
       m => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "\"": "&quot;",
-        "'": "&#039;"
+
+        "&":
+          "&amp;",
+
+        "<":
+          "&lt;",
+
+        ">":
+          "&gt;",
+
+        "\"":
+          "&quot;",
+
+        "'":
+          "&#039;"
+
       }[m])
     );
+
 }
+
+
+function escAttr(v) {
+
+  return String(
+    v ?? ""
+  )
+    .replace(
+      /['\\]/g,
+      m =>
+        "\\" + m
+    );
+
+}
+
+
+/* =====================================================
+   GLOBALS
+   ===================================================== */
 
 Object.assign(
   window,
   {
+
     doLogin,
+
     login,
+
     home,
+
     logout,
+
     batches,
+
     drawBatches,
+
     newBatch,
+
     saveBatch,
+
     manageBatches,
+
     manageTokens,
+
     createToken,
+
     content,
+
+    uploadSourceItem,
+
     newContent,
+
     saveContent,
+
     publish,
+
     modal,
+
     closeModal,
+
     toggleToken
+
   }
 );
 
+
+/* =====================================================
+   START
+   ===================================================== */
+
 if (S.token) {
+
   home();
+
 } else {
+
   login();
+
 }
