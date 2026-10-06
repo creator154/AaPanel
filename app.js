@@ -1,4 +1,4 @@
-const $ = (s) => document.querySelector(s);
+const $ = (selector) => document.querySelector(selector);
 
 const S = {
   token: localStorage.getItem("zx_admin_token") || "",
@@ -10,18 +10,18 @@ const S = {
 
 function API() {
   return (
-    (window.ZX_CONFIG && window.ZX_CONFIG.API_BASE) || ""
+    window.ZX_CONFIG?.API_BASE || ""
   ).replace(/\/$/, "");
 }
 
 
 /* =====================================================
-   API REQUEST
+   API
    ===================================================== */
 
 async function req(path, options = {}) {
   const headers = {
-    "Content-Type": "application/json",
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
     ...(options.headers || {})
   };
 
@@ -38,15 +38,18 @@ async function req(path, options = {}) {
 
   try {
     data = await response.json();
-  } catch (_) {}
+  } catch (_) {
+    data = {};
+  }
 
   if (response.status === 401) {
     localStorage.removeItem("zx_admin_token");
     S.token = "";
+
     showLogin();
 
     throw new Error(
-      data.message || "Session expired. Please sign in again."
+      data.message || "Session expired"
     );
   }
 
@@ -78,12 +81,6 @@ function showLogin() {
     app.style.display = "none";
   }
 
-  const input = $("#auth-token");
-
-  if (input) {
-    input.value = "";
-  }
-
   const error = $("#login-error");
 
   if (error) {
@@ -110,15 +107,15 @@ function showApp() {
    LOGIN
    ===================================================== */
 
-async function doLogin(e) {
-  e.preventDefault();
+async function doLogin(event) {
+  event.preventDefault();
 
   const input = $("#auth-token");
   const error = $("#login-error");
   const button = $("#login-button");
 
   const authToken =
-    input ? input.value.trim() : "";
+    input?.value.trim() || "";
 
   if (!authToken) {
     if (error) {
@@ -139,25 +136,52 @@ async function doLogin(e) {
 
   try {
     console.log(
-      "Login URL:",
+      "LOGIN URL:",
       `${API()}/api/auth/login`
     );
 
-    const data = await req(
-      "/api/auth/login",
+    const response = await fetch(
+      `${API()}/api/auth/login`,
       {
         method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
         body: JSON.stringify({
           authToken
         })
       }
     );
 
-    console.log("Login response:", data);
+    let data = {};
+
+    try {
+      data = await response.json();
+    } catch (_) {}
+
+    console.log(
+      "LOGIN STATUS:",
+      response.status
+    );
+
+    console.log(
+      "LOGIN RESPONSE:",
+      data
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+        data.error ||
+        `Login failed (${response.status})`
+      );
+    }
 
     if (!data.token) {
       throw new Error(
-        data.message || "Token was not returned by server"
+        "Server did not return login token"
       );
     }
 
@@ -180,20 +204,21 @@ async function doLogin(e) {
 
     if (error) {
       error.textContent =
-        err.message || "Sign in failed";
+        err.message ||
+        "Sign in failed";
     }
 
   } finally {
     if (button) {
       button.disabled = false;
-      button.textContent = "Sign In";
+      button.textContent = "Login";
     }
   }
 }
 
 
 /* =====================================================
-   PANEL STYLES
+   PANEL CSS
    ===================================================== */
 
 function addPanelStyles() {
@@ -201,7 +226,8 @@ function addPanelStyles() {
     return;
   }
 
-  const style = document.createElement("style");
+  const style =
+    document.createElement("style");
 
   style.id = "zx-panel-styles";
 
@@ -218,6 +244,7 @@ function addPanelStyles() {
           transparent 35%
         ),
         #080a12;
+
       font-family:
         Inter,
         system-ui,
@@ -243,7 +270,6 @@ function addPanelStyles() {
     .zx-title {
       font-size: 25px;
       font-weight: 800;
-      letter-spacing: -.5px;
     }
 
     .zx-sub {
@@ -257,7 +283,8 @@ function addPanelStyles() {
       border: 1px solid rgba(255,255,255,.08);
       border-radius: 18px;
       padding: 20px;
-      box-shadow: 0 18px 60px rgba(0,0,0,.28);
+      box-shadow:
+        0 18px 60px rgba(0,0,0,.28);
     }
 
     .zx-grid {
@@ -273,12 +300,6 @@ function addPanelStyles() {
       background: #111522;
       border: 1px solid rgba(255,255,255,.07);
       cursor: pointer;
-      transition: .18s;
-    }
-
-    .zx-stat:hover {
-      transform: translateY(-2px);
-      border-color: rgba(120,110,255,.45);
     }
 
     .zx-stat-number {
@@ -301,16 +322,8 @@ function addPanelStyles() {
       font-weight: 700;
     }
 
-    .zx-btn:hover {
-      filter: brightness(1.1);
-    }
-
     .zx-btn.secondary {
       background: #202536;
-    }
-
-    .zx-btn.danger {
-      background: #9d3347;
     }
 
     .zx-actions {
@@ -358,16 +371,11 @@ function addPanelStyles() {
       margin-bottom: 16px;
     }
 
-    .zx-empty {
+    .zx-empty,
+    .zx-loading {
       text-align: center;
       padding: 40px 20px;
       color: #858da0;
-    }
-
-    .zx-loading {
-      text-align: center;
-      padding: 45px;
-      color: #9aa1b3;
     }
 
     @media(max-width:650px) {
@@ -401,7 +409,9 @@ function shell(title, body) {
   const app = $("#app");
 
   if (!app) {
-    throw new Error("#app not found in index.html");
+    throw new Error(
+      "#app not found"
+    );
   }
 
   app.innerHTML = `
@@ -410,7 +420,10 @@ function shell(title, body) {
       <div class="zx-top">
 
         <div>
-          <div class="zx-title">${escapeHtml(title)}</div>
+          <div class="zx-title">
+            ${escapeHtml(title)}
+          </div>
+
           <div class="zx-sub">
             Batch Uploader Panel
           </div>
@@ -435,7 +448,7 @@ function shell(title, body) {
 
 
 /* =====================================================
-   DASHBOARD
+   HOME
    ===================================================== */
 
 async function home() {
@@ -444,17 +457,20 @@ async function home() {
   shell(
     "Batch Uploader",
     `
-      <div class="zx-loading">
-        Loading dashboard...
+      <div class="zx-card">
+        <div class="zx-loading">
+          Loading dashboard...
+        </div>
       </div>
     `
   );
 
   try {
-    const [stats, me] = await Promise.all([
-      req("/api/admin/stats"),
-      req("/api/admin/me")
-    ]);
+    const [stats, me] =
+      await Promise.all([
+        req("/api/admin/stats"),
+        req("/api/admin/me")
+      ]);
 
     shell(
       "Batch Uploader",
@@ -462,6 +478,7 @@ async function home() {
         <div class="zx-card">
 
           <div class="zx-actions">
+
             <button
               class="zx-btn"
               onclick="batches('test')"
@@ -475,6 +492,7 @@ async function home() {
             >
               DPPs
             </button>
+
           </div>
 
           <div class="zx-grid">
@@ -506,6 +524,7 @@ async function home() {
             </div>
 
             <div class="zx-stat">
+
               <div class="zx-muted">
                 Published
               </div>
@@ -513,21 +532,26 @@ async function home() {
               <div class="zx-stat-number">
                 ${Number(stats.published || 0)}
               </div>
+
             </div>
 
             <div class="zx-stat">
+
               <div class="zx-muted">
                 Access
               </div>
 
-              <div class="zx-stat-number"
-                   style="font-size:20px">
-                ${escapeHtml(
+              <div
+                class="zx-stat-number"
+                style="font-size:20px"
+              >
+                ${
                   me.user?.scope === "all"
                     ? "All Batches"
                     : "Assigned"
-                )}
+                }
               </div>
+
             </div>
 
           </div>
@@ -536,17 +560,17 @@ async function home() {
       `
     );
 
-  } catch (err) {
+  } catch (error) {
     shell(
       "Batch Uploader",
       `
         <div class="zx-card">
-          <div class="zx-empty">
-            <div>
-              ${escapeHtml(err.message)}
-            </div>
 
-            <br>
+          <div class="zx-empty">
+
+            ${escapeHtml(error.message)}
+
+            <br><br>
 
             <button
               class="zx-btn"
@@ -554,7 +578,9 @@ async function home() {
             >
               Retry
             </button>
+
           </div>
+
         </div>
       `
     );
@@ -563,21 +589,27 @@ async function home() {
 
 
 /* =====================================================
-   SOURCE BATCHES
+   BATCHES
    ===================================================== */
 
 async function batches(type) {
-  S.type = type === "dpp" ? "dpp" : "test";
+  S.type =
+    type === "dpp"
+      ? "dpp"
+      : "test";
 
   shell(
     S.type === "test"
       ? "Select Batch"
       : "Select Batch • DPP",
+
     `
       <div class="zx-card">
+
         <div class="zx-loading">
           Loading batches...
         </div>
+
       </div>
     `
   );
@@ -602,13 +634,16 @@ async function batches(type) {
 
     renderBatches();
 
-  } catch (err) {
+  } catch (error) {
+
     shell(
       "Select Batch",
       `
         <div class="zx-card">
+
           <div class="zx-empty">
-            ${escapeHtml(err.message)}
+
+            ${escapeHtml(error.message)}
 
             <br><br>
 
@@ -618,7 +653,9 @@ async function batches(type) {
             >
               Retry
             </button>
+
           </div>
+
         </div>
       `
     );
@@ -631,10 +668,12 @@ function renderBatches() {
     S.type === "test"
       ? "Select Batch"
       : "Select Batch • DPP",
+
     `
       <div class="zx-card">
 
         <div class="zx-actions">
+
           <button
             class="zx-btn secondary"
             onclick="home()"
@@ -643,18 +682,27 @@ function renderBatches() {
           </button>
 
           <button
-            class="zx-btn ${S.type === "test" ? "" : "secondary"}"
+            class="zx-btn ${
+              S.type === "test"
+                ? ""
+                : "secondary"
+            }"
             onclick="batches('test')"
           >
             Tests
           </button>
 
           <button
-            class="zx-btn ${S.type === "dpp" ? "" : "secondary"}"
+            class="zx-btn ${
+              S.type === "dpp"
+                ? ""
+                : "secondary"
+            }"
             onclick="batches('dpp')"
           >
             DPPs
           </button>
+
         </div>
 
         <input
@@ -678,17 +726,17 @@ function renderBatches() {
 
 
 function filterBatches() {
-  const q =
+  const query =
     ($("#batch-search")?.value || "")
       .trim()
       .toLowerCase();
 
   const list =
     S.batches.filter(
-      b =>
-        b.name
+      batch =>
+        batch.name
           .toLowerCase()
-          .includes(q)
+          .includes(query)
     );
 
   drawBatchList(list);
@@ -714,26 +762,28 @@ function drawBatchList(list) {
 
   box.innerHTML =
     list.map(
-      b => `
+      batch => `
         <div class="zx-row">
 
           <div>
+
             <div class="zx-row-title">
-              ${escapeHtml(b.name)}
+              ${escapeHtml(batch.name)}
             </div>
 
             <div class="zx-row-sub">
               ${escapeHtml(
-                b.id
-                  ? `Batch ID: ${b.id}`
+                batch.id
+                  ? `Batch ID: ${batch.id}`
                   : ""
               )}
             </div>
+
           </div>
 
           <button
             class="zx-btn"
-            onclick="content('${escapeAttr(b.id)}')"
+            onclick="content('${escapeAttr(batch.id)}')"
           >
             Open
           </button>
@@ -745,16 +795,19 @@ function drawBatchList(list) {
 
 
 /* =====================================================
-   TESTS / DPPS
+   CONTENT
    ===================================================== */
 
 async function content(sourceBatchId) {
-  S.batch = S.batches.find(
-    b => String(b.id) === String(sourceBatchId)
-  ) || {
-    id: sourceBatchId,
-    name: "Selected Batch"
-  };
+  S.batch =
+    S.batches.find(
+      batch =>
+        String(batch.id) ===
+        String(sourceBatchId)
+    ) || {
+      id: sourceBatchId,
+      name: "Selected Batch"
+    };
 
   const endpoint =
     S.type === "dpp"
@@ -767,17 +820,21 @@ async function content(sourceBatchId) {
 
   shell(
     S.batch.name,
+
     `
       <div class="zx-card">
+
         <div class="zx-loading">
-          Loading ${S.type === "dpp" ? "DPPs" : "Tests"}...
+          Loading...
         </div>
+
       </div>
     `
   );
 
   try {
-    const data = await req(endpoint);
+    const data =
+      await req(endpoint);
 
     const raw =
       data.data?.items ||
@@ -794,23 +851,27 @@ async function content(sourceBatchId) {
 
     renderContent();
 
-  } catch (err) {
+  } catch (error) {
+
     shell(
       S.batch.name,
+
       `
         <div class="zx-card">
 
           <div class="zx-actions">
+
             <button
               class="zx-btn secondary"
               onclick="batches('${S.type}')"
             >
               ← Back
             </button>
+
           </div>
 
           <div class="zx-empty">
-            ${escapeHtml(err.message)}
+            ${escapeHtml(error.message)}
           </div>
 
         </div>
@@ -823,22 +884,25 @@ async function content(sourceBatchId) {
 function renderContent() {
   shell(
     S.batch?.name || "Content",
+
     `
       <div class="zx-card">
 
         <div class="zx-actions">
+
           <button
             class="zx-btn secondary"
             onclick="batches('${S.type}')"
           >
             ← Batches
           </button>
+
         </div>
 
         <input
           id="item-search"
           class="zx-search"
-          placeholder="Search ${S.type === "dpp" ? "DPP" : "test"}..."
+          placeholder="Search..."
           oninput="filterContent()"
         >
 
@@ -856,7 +920,7 @@ function renderContent() {
 
 
 function filterContent() {
-  const q =
+  const query =
     ($("#item-search")?.value || "")
       .trim()
       .toLowerCase();
@@ -866,7 +930,7 @@ function filterContent() {
       item =>
         item.title
           .toLowerCase()
-          .includes(q)
+          .includes(query)
     );
 
   drawContentList(list);
@@ -883,7 +947,7 @@ function drawContentList(list) {
   if (!list.length) {
     box.innerHTML = `
       <div class="zx-empty">
-        No ${S.type === "dpp" ? "DPPs" : "tests"} found
+        No content found
       </div>
     `;
 
@@ -896,17 +960,15 @@ function drawContentList(list) {
         <div class="zx-row">
 
           <div>
+
             <div class="zx-row-title">
               ${escapeHtml(item.title)}
             </div>
 
             <div class="zx-row-sub">
-              ${escapeHtml(
-                item.id
-                  ? `ID: ${item.id}`
-                  : ""
-              )}
+              ID: ${escapeHtml(item.id)}
             </div>
+
           </div>
 
           <button
@@ -923,7 +985,7 @@ function drawContentList(list) {
 
 
 /* =====================================================
-   SOURCE ITEM UPLOAD
+   UPLOAD
    ===================================================== */
 
 async function uploadSourceItem(sourceId) {
@@ -940,11 +1002,14 @@ async function uploadSourceItem(sourceId) {
   try {
     shell(
       "Uploading...",
+
       `
         <div class="zx-card">
+
           <div class="zx-loading">
             Fetching questions...
           </div>
+
         </div>
       `
     );
@@ -969,15 +1034,19 @@ async function uploadSourceItem(sourceId) {
 
     const payload = {
       title,
+
       instructions:
         source.instructions ||
         source.description ||
         "",
+
       startTime:
         source.startTime ||
         source.startDate ||
         null,
+
       questions,
+
       published: true
     };
 
@@ -986,9 +1055,12 @@ async function uploadSourceItem(sourceId) {
         `/api/admin/batches/${encodeURIComponent(
           S.batch.id
         )}/content/${type}`,
+
         {
           method: "POST",
-          body: JSON.stringify(payload)
+
+          body:
+            JSON.stringify(payload)
         }
       );
 
@@ -1000,19 +1072,25 @@ async function uploadSourceItem(sourceId) {
     }
 
     alert(
-      `${type === "dpp" ? "DPP" : "Test"} uploaded successfully`
+      `${
+        type === "dpp"
+          ? "DPP"
+          : "Test"
+      } uploaded successfully`
     );
 
     await content(S.batch.id);
 
-  } catch (err) {
+  } catch (error) {
+
     console.error(
       "UPLOAD ERROR:",
-      err
+      error
     );
 
     shell(
       S.batch?.name || "Upload",
+
       `
         <div class="zx-card">
 
@@ -1028,7 +1106,7 @@ async function uploadSourceItem(sourceId) {
                 color:#ff8498;
               "
             >
-              ${escapeHtml(err.message)}
+              ${escapeHtml(error.message)}
             </div>
 
             <br>
@@ -1052,7 +1130,7 @@ async function uploadSourceItem(sourceId) {
 
 
 /* =====================================================
-   NORMALIZERS
+   HELPERS
    ===================================================== */
 
 function normalizeBatch(item) {
@@ -1100,10 +1178,6 @@ function normalizeItem(item) {
 }
 
 
-/* =====================================================
-   QUESTION EXTRACTION
-   ===================================================== */
-
 function extractQuestions(source) {
   const candidates = [
     source.questions,
@@ -1129,7 +1203,9 @@ function extractQuestions(source) {
    ===================================================== */
 
 function logout() {
-  localStorage.removeItem("zx_admin_token");
+  localStorage.removeItem(
+    "zx_admin_token"
+  );
 
   S.token = "";
   S.batch = null;
@@ -1141,7 +1217,7 @@ function logout() {
 
 
 /* =====================================================
-   ESCAPE HELPERS
+   ESCAPE
    ===================================================== */
 
 function escapeHtml(value) {
@@ -1162,33 +1238,80 @@ function escapeAttr(value) {
 
 
 /* =====================================================
-   START
+   INITIALIZE
    ===================================================== */
 
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
+function initLogin() {
+  const form =
+    document.getElementById(
+      "login-form"
+    );
 
-    const form = $("#login-form");
+  if (!form) {
+    console.error(
+      "login-form not found"
+    );
 
-    if (form) {
-      form.addEventListener(
-        "submit",
-        doLogin
-      );
-    }
+    return;
+  }
 
-    if (S.token) {
-      showApp();
-      home().catch(() => {
+  if (
+    form.dataset.initialized ===
+    "true"
+  ) {
+    return;
+  }
+
+  form.dataset.initialized =
+    "true";
+
+  form.addEventListener(
+    "submit",
+    doLogin
+  );
+
+  console.log(
+    "Login handler attached"
+  );
+
+  if (S.token) {
+
+    showApp();
+
+    home().catch(
+      (error) => {
+        console.error(
+          "Auto login failed:",
+          error
+        );
+
         logout();
-      });
-    } else {
-      showLogin();
-    }
+      }
+    );
+
+  } else {
+
+    showLogin();
 
   }
-);
+}
+
+
+if (
+  document.readyState ===
+  "loading"
+) {
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    initLogin
+  );
+
+} else {
+
+  initLogin();
+
+}
 
 
 /* =====================================================
@@ -1201,5 +1324,6 @@ window.batches = batches;
 window.content = content;
 window.filterBatches = filterBatches;
 window.filterContent = filterContent;
-window.uploadSourceItem = uploadSourceItem;
+window.uploadSourceItem =
+  uploadSourceItem;
 window.logout = logout;
