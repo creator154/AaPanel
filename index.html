@@ -1,1295 +1,230 @@
-const $ = (s) => document.querySelector(s);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-const S = {
-  token: localStorage.getItem("zx_admin_token") || "",
-  type: "test",
-  batch: null,
-  batches: []
-};
+  <title>Batch Uploader</title>
 
-const API = () =>
-  ((window.ZX_CONFIG && window.ZX_CONFIG.API_BASE) || "").replace(/\/$/, "");
-
-
-/* =====================================================
-   API
-===================================================== */
-
-async function req(path, opt = {}) {
-
-  const headers = {
-    ...(opt.headers || {})
-  };
-
-  if (S.token) {
-    headers.Authorization = "Bearer " + S.token;
-  }
-
-  if (
-    opt.body &&
-    !(opt.body instanceof FormData) &&
-    !headers["Content-Type"]
-  ) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  const res = await fetch(
-    API() + path,
-    {
-      ...opt,
-      headers
+  <style>
+    * {
+      box-sizing: border-box;
     }
-  );
 
-  if (res.status === 401) {
-    logout();
-    throw new Error("Session expired. Please login again.");
-  }
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+    }
 
-  const text = await res.text();
+    body {
+      min-height: 100vh;
+      font-family: Inter, Roboto, Arial, sans-serif;
+      background: #f7f8fa;
+      color: #171717;
+    }
 
-  let data = {};
+    .login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
 
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    data = {
-      message: text
-    };
-  }
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+      background: #fff;
+      border: 1px solid #e7e7e7;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.07);
+    }
 
-  if (!res.ok) {
-    throw new Error(
-      data.message ||
-      data.error ||
-      `Request failed (${res.status})`
-    );
-  }
+    .brand {
+      text-align: center;
+      margin-bottom: 28px;
+    }
 
-  return data;
-}
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 14px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #2563eb;
+      color: #fff;
+      font-size: 21px;
+      font-weight: 800;
+    }
 
+    .brand h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
 
-/* =====================================================
-   HELPERS
-===================================================== */
+    .brand p {
+      margin: 7px 0 0;
+      color: #737373;
+      font-size: 14px;
+    }
 
-function esc(value) {
+    .field {
+      margin-bottom: 18px;
+    }
 
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+    .field label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #404040;
+    }
 
+    .field input,
+    .field select {
+      width: 100%;
+      height: 44px;
+      padding: 0 13px;
+      border: 1px solid #d8d8d8;
+      border-radius: 7px;
+      outline: none;
+      background: #fff;
+      color: #171717;
+      font-size: 14px;
+    }
 
-function escAttr(value) {
-  return esc(value);
-}
+    .field input:focus,
+    .field select:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.09);
+    }
 
+    .field select {
+      cursor: pointer;
+    }
 
-function saveToken(token) {
+    #login-error {
+      min-height: 18px;
+      margin: 0 0 12px;
+      color: #dc2626;
+      font-size: 13px;
+    }
 
-  S.token = token || "";
+    #login-button {
+      width: 100%;
+      height: 44px;
+      border: 0;
+      border-radius: 7px;
+      background: #2563eb;
+      color: white;
+      font-size: 14px;
+      font-weight: 650;
+      cursor: pointer;
+    }
 
-  if (S.token) {
-    localStorage.setItem(
-      "zx_admin_token",
-      S.token
-    );
-  } else {
-    localStorage.removeItem(
-      "zx_admin_token"
-    );
-  }
-}
+    #login-button:hover {
+      background: #1d4ed8;
+    }
 
+    #login-button:disabled {
+      opacity: .65;
+      cursor: not-allowed;
+    }
 
-function logout() {
+    .footer-text {
+      text-align: center;
+      margin-top: 20px;
+      color: #9ca3af;
+      font-size: 12px;
+    }
 
-  saveToken("");
+    #app {
+      display: none;
+    }
 
-  S.batch = null;
-  S.batches = [];
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 25px 21px;
+      }
+    }
+  </style>
+</head>
 
-  renderLogin();
-}
+<body>
 
+  <div class="login-screen">
 
-/* =====================================================
-   LOGIN
-===================================================== */
+    <div class="login-card">
 
-function renderLogin(error = "") {
+      <div class="brand">
 
-  document.body.innerHTML = `
-    <div class="login-page">
-
-      <div class="login-card">
-
-        <div class="logo">
+        <div class="brand-icon">
           Z
         </div>
 
         <h1>Batch Uploader</h1>
 
-        <p>
-          Sign in with your uploader authentication token
-          to access your batches.
-        </p>
-
-        ${
-          error
-            ? `
-              <div class="alert alert-error">
-                ${esc(error)}
-              </div>
-            `
-            : ""
-        }
-
-        <form id="loginForm">
-
-          <div class="form-group">
-
-            <label for="authToken">
-              Auth Token
-            </label>
-
-            <input
-              id="authToken"
-              type="password"
-              autocomplete="off"
-              placeholder="Enter auth token"
-              required
-            >
-
-          </div>
-
-          <div class="form-group">
-
-            <label>
-              Role
-            </label>
-
-            <input
-              type="text"
-              value="Batch Uploader"
-              disabled
-            >
-
-          </div>
-
-          <button
-            class="btn btn-primary btn-full"
-            id="loginBtn"
-            type="submit"
-          >
-            Login
-          </button>
-
-        </form>
+        <p>Sign in to manage your batches</p>
 
       </div>
 
-    </div>
-  `;
+      <form id="login-form">
 
+        <div class="field">
+          <label for="auth-token">
+            Auth Token
+          </label>
 
-  $("#loginForm").addEventListener(
-    "submit",
-    login
-  );
-}
-
-
-async function login(e) {
-
-  e.preventDefault();
-
-  const input =
-    $("#authToken");
-
-  const btn =
-    $("#loginBtn");
-
-  const token =
-    input.value.trim();
-
-  if (!token) {
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = "Logging in...";
-
-  try {
-
-    const data =
-      await req(
-        "/api/auth/login",
-        {
-          method: "POST",
-
-          body: JSON.stringify({
-            authToken: token
-          })
-        }
-      );
-
-
-    if (
-      !data.success ||
-      !data.token
-    ) {
-
-      throw new Error(
-        data.message ||
-        "Login failed"
-      );
-    }
-
-
-    saveToken(
-      data.token
-    );
-
-    await renderDashboard();
-
-  } catch (err) {
-
-    btn.disabled = false;
-    btn.textContent = "Login";
-
-    renderLogin(
-      err.message
-    );
-  }
-}
-
-
-/* =====================================================
-   DASHBOARD
-===================================================== */
-
-async function renderDashboard() {
-
-  document.body.innerHTML = `
-
-    <div class="dashboard">
-
-      <aside class="sidebar">
-
-        <div class="brand">
-
-          <div class="brand-icon">
-            Z
-          </div>
-
-          <span>
-            Batch Uploader
-          </span>
-
+          <input
+            id="auth-token"
+            type="password"
+            placeholder="Enter auth token"
+            autocomplete="off"
+            required
+          >
         </div>
 
-        <div class="nav-title">
-          UPLOADER
+        <div class="field">
+          <label for="role">
+            Role
+          </label>
+
+          <select id="role">
+            <option value="batch">
+              Batch Uploader
+            </option>
+          </select>
         </div>
 
-        <div
-          class="nav-item active"
-          id="navBatches"
+        <p id="login-error"></p>
+
+        <button
+          id="login-button"
+          type="submit"
         >
-          <span>▦</span>
-          <span>Batches</span>
-        </div>
+          Login
+        </button>
 
-        <div
-          class="nav-item"
-          id="navTests"
-        >
-          <span>✓</span>
-          <span>Tests</span>
-        </div>
+      </form>
 
-        <div
-          class="nav-item"
-          id="navDpps"
-        >
-          <span>▤</span>
-          <span>DPPs</span>
-        </div>
-
-      </aside>
-
-
-      <main class="main">
-
-        <header class="topbar">
-
-          <div class="page-title">
-            Batch Uploader
-          </div>
-
-          <div class="user-area">
-
-            <div class="avatar">
-              U
-            </div>
-
-            <button
-              class="btn btn-secondary btn-sm"
-              id="logoutBtn"
-            >
-              Logout
-            </button>
-
-          </div>
-
-        </header>
-
-
-        <section
-          class="content"
-          id="content"
-        >
-
-          <div class="loading">
-            <div class="spinner"></div>
-            Loading batches...
-          </div>
-
-        </section>
-
-      </main>
-
-    </div>
-  `;
-
-
-  $("#logoutBtn")
-    .addEventListener(
-      "click",
-      logout
-    );
-
-
-  $("#navBatches")
-    .addEventListener(
-      "click",
-      () => batches()
-    );
-
-
-  $("#navTests")
-    .addEventListener(
-      "click",
-      () => {
-
-        if (S.batch) {
-          S.type = "test";
-          content(S.batch);
-        }
-
-      }
-    );
-
-
-  $("#navDpps")
-    .addEventListener(
-      "click",
-      () => {
-
-        if (S.batch) {
-          S.type = "dpp";
-          content(S.batch);
-        }
-
-      }
-    );
-
-
-  await batches();
-}
-
-
-/* =====================================================
-   BATCHES
-===================================================== */
-
-async function batches() {
-
-  const box =
-    $("#content");
-
-  if (!box) return;
-
-  box.innerHTML = `
-    <div class="loading">
-      <div class="spinner"></div>
-      Loading your batches...
-    </div>
-  `;
-
-
-  try {
-
-    const result =
-      await req(
-        "/api/admin/source/batches"
-      );
-
-
-    const raw =
-      result.data;
-
-
-    S.batches =
-      normalizeBatches(raw);
-
-
-    if (!S.batches.length) {
-
-      box.innerHTML = `
-        <div class="card">
-
-          <div class="empty">
-
-            <div class="empty-icon">
-              📚
-            </div>
-
-            <h3>
-              No batches found
-            </h3>
-
-            <p>
-              No batches are available for this uploader token.
-            </p>
-
-          </div>
-
-        </div>
-      `;
-
-      return;
-    }
-
-
-    box.innerHTML = `
-
-      <div class="welcome">
-
-        <h2>
-          Select a Batch
-        </h2>
-
-        <p>
-          Choose a batch to view its Tests and DPPs.
-        </p>
-
-      </div>
-
-
-      <div class="batch-grid">
-
-        ${S.batches.map((b, i) => `
-
-          <div
-            class="batch-card"
-            data-batch-index="${i}"
-          >
-
-            <div class="batch-icon">
-              📚
-            </div>
-
-            <h4>
-              ${esc(b.name)}
-            </h4>
-
-            <p>
-              ${esc(
-                b.category ||
-                b.exam ||
-                "Batch"
-              )}
-            </p>
-
-          </div>
-
-        `).join("")}
-
-      </div>
-    `;
-
-
-    box
-      .querySelectorAll(
-        ".batch-card"
-      )
-      .forEach(card => {
-
-        card.addEventListener(
-          "click",
-          () => {
-
-            const index =
-              Number(
-                card.dataset.batchIndex
-              );
-
-            S.batch =
-              S.batches[index];
-
-            S.type = "test";
-
-            content(
-              S.batch
-            );
-
-          }
-        );
-
-      });
-
-  } catch (err) {
-
-    box.innerHTML = `
-
-      <div class="card">
-
-        <div class="card-body">
-
-          <div class="alert alert-error">
-            ${esc(err.message)}
-          </div>
-
-          <button
-            class="btn btn-primary"
-            id="retryBatches"
-          >
-            Retry
-          </button>
-
-        </div>
-
-      </div>
-    `;
-
-
-    $("#retryBatches")
-      .addEventListener(
-        "click",
-        batches
-      );
-  }
-}
-
-
-/* =====================================================
-   NORMALIZE BATCHES
-===================================================== */
-
-function normalizeBatches(data) {
-
-  let arr = [];
-
-  if (Array.isArray(data)) {
-    arr = data;
-  }
-
-  else if (
-    Array.isArray(data?.batches)
-  ) {
-    arr = data.batches;
-  }
-
-  else if (
-    Array.isArray(data?.data)
-  ) {
-    arr = data.data;
-  }
-
-  else if (
-    Array.isArray(data?.docs)
-  ) {
-    arr = data.docs;
-  }
-
-  else if (
-    Array.isArray(data?.results)
-  ) {
-    arr = data.results;
-  }
-
-  else if (
-    Array.isArray(data?.items)
-  ) {
-    arr = data.items;
-  }
-
-
-  return arr
-    .map((b) => {
-
-      const id =
-        b?._id ??
-        b?.id ??
-        b?.batchId;
-
-
-      const name =
-        b?.name ??
-        b?.title ??
-        b?.batchName ??
-        "Unnamed Batch";
-
-
-      return {
-        ...b,
-        _id: id,
-        name
-      };
-
-    })
-    .filter(
-      b => b._id
-    );
-}
-
-
-/* =====================================================
-   TESTS / DPPs
-===================================================== */
-
-async function content(batch) {
-
-  if (!batch) {
-    return batches();
-  }
-
-
-  const box =
-    $("#content");
-
-  if (!box) return;
-
-
-  box.innerHTML = `
-
-    <div class="loading">
-
-      <div class="spinner"></div>
-
-      Loading ${
-        S.type === "dpp"
-          ? "DPPs"
-          : "Tests"
-      }...
-
-    </div>
-  `;
-
-
-  try {
-
-    const endpoint =
-      S.type === "dpp"
-        ? `/api/admin/source/batches/${encodeURIComponent(
-            batch._id
-          )}/dpps`
-        : `/api/admin/source/batches/${encodeURIComponent(
-            batch._id
-          )}/tests`;
-
-
-    const result =
-      await req(endpoint);
-
-
-    const items =
-      normalizeItems(
-        result.data
-      );
-
-
-    renderContent(
-      batch,
-      items
-    );
-
-  } catch (err) {
-
-    box.innerHTML = `
-
-      <div class="card">
-
-        <div class="card-body">
-
-          <button
-            class="btn btn-secondary btn-sm"
-            id="backBatches"
-          >
-            ← Back to Batches
-          </button>
-
-          <br><br>
-
-          <div class="alert alert-error">
-            ${esc(err.message)}
-          </div>
-
-          <button
-            class="btn btn-primary"
-            id="retryContent"
-          >
-            Retry
-          </button>
-
-        </div>
-
-      </div>
-    `;
-
-
-    $("#backBatches")
-      .addEventListener(
-        "click",
-        batches
-      );
-
-
-    $("#retryContent")
-      .addEventListener(
-        "click",
-        () => content(batch)
-      );
-
-  }
-}
-
-
-/* =====================================================
-   NORMALIZE ITEMS
-===================================================== */
-
-function normalizeItems(data) {
-
-  let arr = [];
-
-  if (Array.isArray(data)) {
-    arr = data;
-  }
-
-  else if (
-    Array.isArray(data?.tests)
-  ) {
-    arr = data.tests;
-  }
-
-  else if (
-    Array.isArray(data?.dpps)
-  ) {
-    arr = data.dpps;
-  }
-
-  else if (
-    Array.isArray(data?.items)
-  ) {
-    arr = data.items;
-  }
-
-  else if (
-    Array.isArray(data?.data)
-  ) {
-    arr = data.data;
-  }
-
-  else if (
-    Array.isArray(data?.docs)
-  ) {
-    arr = data.docs;
-  }
-
-  else if (
-    Array.isArray(data?.results)
-  ) {
-    arr = data.results;
-  }
-
-
-  return arr
-    .map(item => {
-
-      const id =
-        item?._id ??
-        item?.id ??
-        item?.testId ??
-        item?.dppId;
-
-
-      const title =
-        item?.title ??
-        item?.name ??
-        item?.testName ??
-        item?.dppName ??
-        "Untitled";
-
-
-      return {
-        ...item,
-        _id: id,
-        title
-      };
-
-    })
-    .filter(
-      item => item._id
-    );
-}
-
-
-/* =====================================================
-   RENDER TESTS / DPPs
-===================================================== */
-
-function renderContent(
-  batch,
-  items
-) {
-
-  const box =
-    $("#content");
-
-
-  box.innerHTML = `
-
-    <div class="welcome">
-
-      <button
-        class="btn btn-secondary btn-sm"
-        id="backBatches"
-      >
-        ← Batches
-      </button>
-
-      <br><br>
-
-      <h2>
-        ${esc(batch.name)}
-      </h2>
-
-      <p>
-        Select Tests or DPPs to upload.
-      </p>
-
-    </div>
-
-
-    <div class="card">
-
-      <div class="card-header">
-
-        <div class="tabs">
-
-          <button
-            class="tab ${
-              S.type === "test"
-                ? "active"
-                : ""
-            }"
-            id="testsTab"
-          >
-            Tests
-          </button>
-
-          <button
-            class="tab ${
-              S.type === "dpp"
-                ? "active"
-                : ""
-            }"
-            id="dppsTab"
-          >
-            DPPs
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <div class="card-body">
-
-        ${
-          items.length
-            ? `
-              <div class="item-list">
-
-                ${items.map((item, index) => `
-
-                  <div class="item-row">
-
-                    <div class="item-info">
-
-                      <div class="item-title">
-                        ${esc(item.title)}
-                      </div>
-
-                      <div class="item-meta">
-
-                        ${
-                          item.totalQuestions ??
-                          item.questionCount ??
-                          item.questionsCount ??
-                          ""
-                        }
-
-                        ${
-                          (
-                            item.totalQuestions ??
-                            item.questionCount ??
-                            item.questionsCount
-                          ) != null
-                            ? " questions"
-                            : ""
-                        }
-
-                      </div>
-
-                    </div>
-
-
-                    <div class="item-actions">
-
-                      <button
-                        class="btn btn-primary btn-sm upload-source"
-                        data-index="${index}"
-                      >
-                        Upload
-                      </button>
-
-                    </div>
-
-                  </div>
-
-                `).join("")}
-
-              </div>
-            `
-            : `
-              <div class="empty">
-
-                <div class="empty-icon">
-                  📄
-                </div>
-
-                <h3>
-                  No ${
-                    S.type === "dpp"
-                      ? "DPPs"
-                      : "Tests"
-                  } found
-                </h3>
-
-                <p>
-                  There is no content available in this section.
-                </p>
-
-              </div>
-            `
-        }
-
+      <div class="footer-text">
+        Secure uploader panel
       </div>
 
     </div>
-  `;
 
+  </div>
 
-  $("#backBatches")
-    .addEventListener(
-      "click",
-      batches
-    );
+  <div id="app"></div>
 
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
 
-  $("#testsTab")
-    .addEventListener(
-      "click",
-      () => {
-
-        S.type = "test";
-
-        content(batch);
-
-      }
-    );
-
-
-  $("#dppsTab")
-    .addEventListener(
-      "click",
-      () => {
-
-        S.type = "dpp";
-
-        content(batch);
-
-      }
-    );
-
-
-  box
-    .querySelectorAll(
-      ".upload-source"
-    )
-    .forEach(button => {
-
-      button.addEventListener(
-        "click",
-        async () => {
-
-          const index =
-            Number(
-              button.dataset.index
-            );
-
-          const item =
-            items[index];
-
-          await uploadSourceItem(
-            batch,
-            item,
-            button
-          );
-
-        }
-      );
-
-    });
-}
-
-
-/* =====================================================
-   SOURCE ITEM UPLOAD
-===================================================== */
-
-async function uploadSourceItem(
-  batch,
-  item,
-  button
-) {
-
-  button.disabled = true;
-  button.textContent = "Loading...";
-
-
-  try {
-
-    const detail =
-      await req(
-        `/api/admin/source/tests/${encodeURIComponent(
-          item._id
-        )}`
-      );
-
-
-    const source =
-      detail.data ||
-      detail.test ||
-      detail;
-
-
-    const questions =
-      extractQuestions(
-        source
-      );
-
-
-    const title =
-      source?.title ||
-      source?.name ||
-      item.title ||
-      "Untitled";
-
-
-    if (!questions.length) {
-
-      throw new Error(
-        "No questions found in this item."
-      );
-    }
-
-
-    button.textContent =
-      "Uploading...";
-
-
-    /*
-      IMPORTANT:
-
-      The local MongoDB Test model expects
-      a local MongoDB Batch ObjectId.
-
-      Therefore this works only when the
-      source batch ID is also a valid local
-      batch ID. If PenPencil uses a different
-      ID system, backend mapping is required.
-    */
-
-    const localBatchId =
-      batch._id;
-
-
-    const result =
-      await req(
-        `/api/admin/batches/${encodeURIComponent(
-          localBatchId
-        )}/content/${S.type}`,
-        {
-          method: "POST",
-
-          body: JSON.stringify({
-
-            title,
-
-            instructions:
-              source?.instructions ||
-              source?.description ||
-              "",
-
-            startTime:
-              source?.startTime ||
-              source?.startDate ||
-              null,
-
-            questions,
-
-            published: true
-
-          })
-
-        }
-      );
-
-
-    if (!result.success) {
-
-      throw new Error(
-        result.message ||
-        "Upload failed"
-      );
-    }
-
-
-    button.textContent =
-      "Uploaded ✓";
-
-    button.classList.remove(
-      "btn-primary"
-    );
-
-    button.classList.add(
-      "btn-success"
-    );
-
-
-  } catch (err) {
-
-    button.disabled = false;
-
-    button.textContent =
-      "Upload";
-
-
-    alert(
-      "Upload failed:\n\n" +
-      err.message
-    );
-  }
-}
-
-
-/* =====================================================
-   QUESTION EXTRACTION
-===================================================== */
-
-function extractQuestions(data) {
-
-  if (!data) {
-    return [];
-  }
-
-
-  if (
-    Array.isArray(
-      data.questions
-    )
-  ) {
-    return data.questions;
-  }
-
-
-  if (
-    Array.isArray(
-      data.questionList
-    )
-  ) {
-    return data.questionList;
-  }
-
-
-  if (
-    Array.isArray(
-      data.data?.questions
-    )
-  ) {
-    return data.data.questions;
-  }
-
-
-  if (
-    Array.isArray(
-      data.data?.questionList
-    )
-  ) {
-    return data.data.questionList;
-  }
-
-
-  if (
-    Array.isArray(
-      data.test?.questions
-    )
-  ) {
-    return data.test.questions;
-  }
-
-
-  return [];
-}
-
-
-/* =====================================================
-   START
-===================================================== */
-
-if (S.token) {
-
-  renderDashboard()
-    .catch(() => {
-
-      saveToken("");
-
-      renderLogin();
-
-    });
-
-} else {
-
-  renderLogin();
-
-}
+</body>
+</html>
