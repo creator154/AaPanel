@@ -1,725 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>Batch Uploader</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      margin: 0;
-      min-height: 100%;
-    }
-
-    body {
-      min-height: 100vh;
-
-      font-family:
-        Inter,
-        ui-sans-serif,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-
-      color: #f8fafc;
-
-      background:
-        radial-gradient(
-          circle at 15% 20%,
-          rgba(99, 102, 241, .22),
-          transparent 32%
-        ),
-        radial-gradient(
-          circle at 85% 15%,
-          rgba(168, 85, 247, .20),
-          transparent 30%
-        ),
-        radial-gradient(
-          circle at 50% 100%,
-          rgba(37, 99, 235, .18),
-          transparent 38%
-        ),
-        #070b16;
-
-      overflow-x: hidden;
-    }
-
-    body::before,
-    body::after {
-      content: "";
-
-      position: fixed;
-
-      width: 280px;
-      height: 280px;
-
-      border-radius: 50%;
-
-      filter: blur(90px);
-
-      pointer-events: none;
-
-      z-index: 0;
-    }
-
-    body::before {
-      left: -120px;
-      bottom: -80px;
-
-      background: rgba(37, 99, 235, .20);
-    }
-
-    body::after {
-      right: -120px;
-      top: -80px;
-
-      background: rgba(139, 92, 246, .18);
-    }
-
-    /* LOGIN */
-
-    .login-screen {
-      position: relative;
-
-      z-index: 10;
-
-      width: 100%;
-      min-height: 100vh;
-
-      display: flex;
-
-      align-items: center;
-      justify-content: center;
-
-      padding: 24px;
-    }
-
-    .login-card {
-      position: relative;
-
-      width: 100%;
-      max-width: 430px;
-
-      padding: 38px;
-
-      border:
-        1px solid rgba(255, 255, 255, .10);
-
-      border-radius: 20px;
-
-      background:
-        linear-gradient(
-          145deg,
-          rgba(30, 41, 59, .86),
-          rgba(15, 23, 42, .82)
-        );
-
-      backdrop-filter: blur(22px);
-      -webkit-backdrop-filter: blur(22px);
-
-      box-shadow:
-        0 30px 80px rgba(0, 0, 0, .45),
-        inset 0 1px 0 rgba(255, 255, 255, .06);
-    }
-
-    .brand {
-      text-align: center;
-
-      margin-bottom: 32px;
-    }
-
-    .logo {
-      width: 58px;
-      height: 58px;
-
-      margin: 0 auto 18px;
-
-      display: flex;
-
-      align-items: center;
-      justify-content: center;
-
-      border-radius: 16px;
-
-      color: #fff;
-
-      font-size: 24px;
-      font-weight: 800;
-
-      background:
-        linear-gradient(
-          135deg,
-          #4f46e5,
-          #7c3aed
-        );
-
-      box-shadow:
-        0 12px 35px rgba(79, 70, 229, .38),
-        inset 0 1px 0 rgba(255, 255, 255, .25);
-    }
-
-    .brand h1 {
-      margin: 0;
-
-      font-size: 25px;
-      line-height: 1.2;
-
-      font-weight: 750;
-
-      letter-spacing: -.5px;
-
-      color: #fff;
-    }
-
-    .brand p {
-      margin: 9px 0 0;
-
-      color: #94a3b8;
-
-      font-size: 14px;
-    }
-
-    .field {
-      margin-bottom: 20px;
-    }
-
-    .field label {
-      display: block;
-
-      margin-bottom: 8px;
-
-      color: #cbd5e1;
-
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .field input,
-    .field select {
-      width: 100%;
-      height: 48px;
-
-      padding: 0 14px;
-
-      border:
-        1px solid rgba(148, 163, 184, .20);
-
-      border-radius: 10px;
-
-      outline: none;
-
-      color: #f8fafc;
-
-      background:
-        rgba(15, 23, 42, .72);
-
-      font-size: 14px;
-
-      transition:
-        border-color .2s ease,
-        box-shadow .2s ease,
-        background .2s ease;
-    }
-
-    .field input::placeholder {
-      color: #64748b;
-    }
-
-    .field input:focus,
-    .field select:focus {
-      border-color:
-        rgba(99, 102, 241, .85);
-
-      background:
-        rgba(15, 23, 42, .95);
-
-      box-shadow:
-        0 0 0 3px rgba(99, 102, 241, .12),
-        0 8px 25px rgba(0, 0, 0, .12);
-    }
-
-    .field select {
-      cursor: pointer;
-    }
-
-    .field select option {
-      color: #111827;
-      background: #fff;
-    }
-
-    #login-error {
-      min-height: 20px;
-
-      margin:
-        -3px 0 13px;
-
-      color: #fb7185;
-
-      font-size: 13px;
-
-      text-align: center;
-    }
-
-    #login-button {
-      width: 100%;
-      height: 49px;
-
-      border: 0;
-
-      border-radius: 10px;
-
-      color: #fff;
-
-      background:
-        linear-gradient(
-          135deg,
-          #4f46e5,
-          #7c3aed
-        );
-
-      font-size: 14px;
-      font-weight: 700;
-
-      cursor: pointer;
-
-      box-shadow:
-        0 12px 30px rgba(79, 70, 229, .28);
-
-      transition:
-        transform .18s ease,
-        box-shadow .18s ease,
-        filter .18s ease;
-    }
-
-    #login-button:hover {
-      transform: translateY(-1px);
-
-      filter: brightness(1.08);
-
-      box-shadow:
-        0 16px 38px rgba(79, 70, 229, .38);
-    }
-
-    #login-button:active {
-      transform: translateY(0);
-    }
-
-    #login-button:disabled {
-      opacity: .6;
-
-      cursor: not-allowed;
-
-      transform: none;
-    }
-
-    .secure {
-      display: flex;
-
-      align-items: center;
-      justify-content: center;
-
-      gap: 7px;
-
-      margin-top: 22px;
-
-      color: #64748b;
-
-      font-size: 12px;
-    }
-
-    .secure-dot {
-      width: 6px;
-      height: 6px;
-
-      border-radius: 50%;
-
-      background: #22c55e;
-
-      box-shadow:
-        0 0 10px rgba(34, 197, 94, .65);
-    }
-
-    /* APP */
-
-    #app {
-      display: none;
-
-      position: relative;
-
-      z-index: 5;
-
-      min-height: 100vh;
-    }
-
-    @media (max-width: 500px) {
-
-      .login-screen {
-        padding: 18px;
-      }
-
-      .login-card {
-        padding: 30px 22px;
-
-        border-radius: 18px;
-      }
-
-      .brand h1 {
-        font-size: 23px;
-      }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Batch Uploader</title>
+
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f8fafc;background:radial-gradient(circle at 15% 20%,rgba(99,102,241,.22),transparent 32%),radial-gradient(circle at 85% 15%,rgba(168,85,247,.20),transparent 30%),radial-gradient(circle at 50% 100%,rgba(37,99,235,.18),transparent 38%),#070b16;overflow-x:hidden}
+body::before,body::after{content:"";position:fixed;width:280px;height:280px;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0}
+body::before{left:-120px;bottom:-80px;background:rgba(37,99,235,.20)}
+body::after{right:-120px;top:-80px;background:rgba(139,92,246,.18)}
+
+.login-screen{position:relative;z-index:10;width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-card{position:relative;width:100%;max-width:430px;padding:38px;border:1px solid rgba(255,255,255,.10);border-radius:20px;background:linear-gradient(145deg,rgba(30,41,59,.86),rgba(15,23,42,.82));backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
+.brand{text-align:center;margin-bottom:32px}
+.logo{width:58px;height:58px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;border-radius:16px;color:#fff;font-size:24px;font-weight:800;background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 12px 35px rgba(79,70,229,.38),inset 0 1px 0 rgba(255,255,255,.25)}
+.brand h1{margin:0;font-size:25px;line-height:1.2;font-weight:750;letter-spacing:-.5px;color:#fff}
+.brand p{margin:9px 0 0;color:#94a3b8;font-size:14px}
+.field{margin-bottom:20px}
+.field label{display:block;margin-bottom:8px;color:#cbd5e1;font-size:13px;font-weight:600}
+.field input,.field select{width:100%;height:48px;padding:0 14px;border:1px solid rgba(148,163,184,.20);border-radius:10px;outline:none;color:#f8fafc;background:rgba(15,23,42,.72);font-size:14px;transition:border-color .2s ease,box-shadow .2s ease,background .2s ease}
+.field input::placeholder{color:#64748b}
+.field input:focus,.field select:focus{border-color:rgba(99,102,241,.85);background:rgba(15,23,42,.95);box-shadow:0 0 0 3px rgba(99,102,241,.12),0 8px 25px rgba(0,0,0,.12)}
+.field select{cursor:pointer}
+.field select option{color:#111827;background:#fff}
+#login-error{min-height:20px;margin:-3px 0 13px;color:#fb7185;font-size:13px;text-align:center}
+#login-button{width:100%;height:49px;border:0;border-radius:10px;color:#fff;background:linear-gradient(135deg,#4f46e5,#7c3aed);font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 12px 30px rgba(79,70,229,.28);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
+#login-button:hover{transform:translateY(-1px);filter:brightness(1.08);box-shadow:0 16px 38px rgba(79,70,229,.38)}
+#login-button:active{transform:translateY(0)}
+#login-button:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.secure{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:22px;color:#64748b;font-size:12px}
+.secure-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px rgba(34,197,94,.65)}
+
+#app{display:none;position:relative;z-index:5;min-height:100vh}
+
+@media(max-width:500px){
+.login-screen{padding:18px}
+.login-card{padding:30px 22px;border-radius:18px}
+.brand h1{font-size:23px}
+}
+</style>
 </head>
 
 <body>
 
-  <!-- LOGIN SCREEN -->
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
 
-  <div
-    id="login-screen"
-    class="login-screen"
-  >
+    <div class="brand">
+      <div class="logo">Z</div>
+      <h1>Batch Uploader</h1>
+      <p>Manage your batches and tests securely</p>
+    </div>
 
-    <div class="login-card">
+    <form id="login-form">
 
-      <div class="brand">
-
-        <div class="logo">
-          Z
-        </div>
-
-        <h1>
-          Batch Uploader
-        </h1>
-
-        <p>
-          Manage your batches and tests securely
-        </p>
-
+      <div class="field">
+        <label for="auth-token">Auth Token</label>
+        <input id="auth-token" type="password" placeholder="Enter your auth token" autocomplete="off" required>
       </div>
 
-
-      <form id="login-form">
-
-        <div class="field">
-
-          <label for="auth-token">
-            Auth Token
-          </label>
-
-          <input
-            id="auth-token"
-            type="password"
-            placeholder="Enter your auth token"
-            autocomplete="off"
-            required
-          >
-
-        </div>
-
-
-        <div class="field">
-
-          <label for="role">
-            Role
-          </label>
-
-          <select id="role">
-
-            <option value="batch">
-              Batch Uploader
-            </option>
-
-          </select>
-
-        </div>
-
-
-        <p id="login-error"></p>
-
-
-        <button
-          id="login-button"
-          type="submit"
-        >
-          Login
-        </button>
-
-      </form>
-
-
-      <div class="secure">
-
-        <span class="secure-dot"></span>
-
-        Secure uploader panel
-
+      <div class="field">
+        <label for="role">Role</label>
+        <select id="role">
+          <option value="batch">Batch Uploader</option>
+        </select>
       </div>
 
+      <p id="login-error"></p>
+
+      <button id="login-button" type="submit">Login</button>
+
+    </form>
+
+    <div class="secure">
+      <span class="secure-dot"></span>
+      Secure uploader panel
     </div>
 
   </div>
-
-
-  <!-- APP -->
-
-  <div id="app"></div>
-
-
-  <!-- CONFIG -->
-
-  <script src="./config.js?v=10"></script>
-
-
-  <!-- MAIN APP -->
-
-  <script src="./app.js?v=10"></script>
-
-
-  <!-- LOGIN FALLBACK -->
-
-  <script>
-
-    document.addEventListener(
-      "DOMContentLoaded",
-      function () {
-
-        const form =
-          document.getElementById(
-            "login-form"
-          );
-
-        const button =
-          document.getElementById(
-            "login-button"
-          );
-
-        const input =
-          document.getElementById(
-            "auth-token"
-          );
-
-        const error =
-          document.getElementById(
-            "login-error"
-          );
-
-        if (!form) {
-          return;
-        }
-
-
-        form.addEventListener(
-          "submit",
-          async function (event) {
-
-            event.preventDefault();
-
-
-            const authToken =
-              input.value.trim();
-
-
-            if (!authToken) {
-
-              error.style.color =
-                "#fb7185";
-
-              error.textContent =
-                "Auth token required";
-
-              return;
-            }
-
-
-            button.disabled = true;
-
-            button.textContent =
-              "Logging in...";
-
-            error.textContent = "";
-
-
-            const API =
-              (
-                window.ZX_CONFIG &&
-                window.ZX_CONFIG.API_BASE
-                  ? window.ZX_CONFIG.API_BASE
-                  : ""
-              ).replace(/\/$/, "");
-
-
-            if (!API) {
-
-              error.style.color =
-                "#fb7185";
-
-              error.textContent =
-                "API URL missing";
-
-              button.disabled = false;
-
-              button.textContent =
-                "Login";
-
-              return;
-            }
-
-
-            try {
-
-              console.log(
-                "LOGIN URL:",
-                API + "/api/auth/login"
-              );
-
-
-              const response =
-                await fetch(
-                  API + "/api/auth/login",
-                  {
-                    method: "POST",
-
-                    headers: {
-                      "Content-Type":
-                        "application/json"
-                    },
-
-                    body: JSON.stringify({
-                      authToken:
-                        authToken
-                    })
-                  }
-                );
-
-
-              const data =
-                await response
-                  .json()
-                  .catch(
-                    () => ({})
-                  );
-
-
-              console.log(
-                "LOGIN STATUS:",
-                response.status
-              );
-
-              console.log(
-                "LOGIN RESPONSE:",
-                data
-              );
-
-
-              if (!response.ok) {
-
-                throw new Error(
-                  data.message ||
-                  "Invalid auth token"
-                );
-              }
-
-
-              if (!data.token) {
-
-                throw new Error(
-                  "Backend did not return JWT token"
-                );
-              }
-
-
-              localStorage.setItem(
-                "zx_admin_token",
-                data.token
-              );
-
-
-              error.style.color =
-                "#22c55e";
-
-              error.textContent =
-                "Login successful";
-
-
-              button.textContent =
-                "Opening panel...";
-
-
-              document.getElementById(
-                "login-screen"
-              ).style.display = "none";
-
-
-              document.getElementById(
-                "app"
-              ).style.display = "block";
-
-
-              /*
-               * app.js ka home function
-               * available ho to use karega.
-               */
-
-              if (
-                typeof window.home ===
-                "function"
-              ) {
-
-                await window.home();
-
-              } else {
-
-                /*
-                 * app.js reload karke
-                 * initialization kar sakta hai.
-                 */
-
-                window.location.reload();
-
-              }
-
-            } catch (err) {
-
-              console.error(
-                "LOGIN ERROR:",
-                err
-              );
-
-
-              error.style.color =
-                "#fb7185";
-
-              error.textContent =
-                err.message ||
-                "Login failed";
-
-
-              button.disabled = false;
-
-              button.textContent =
-                "Login";
-
-            }
-
-          }
-        );
-
-      }
-    );
-
-  </script>
+</div>
+
+<!-- APP -->
+<div id="app"></div>
+
+<!-- CONFIG -->
+<script src="./config.js?v=11"></script>
+
+<!-- MAIN APP: login + batch list sab app.js me hai -->
+<script src="./app.js?v=11"></script>
+
+<!-- Form submit ko app.js ke doLogin se jodo -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var form = document.getElementById("login-form");
+  if (!form) return;
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    if (typeof window.doLogin === "function") {
+      window.doLogin(e);
+    } else {
+      var err = document.getElementById("login-error");
+      err.style.color = "#fb7185";
+      err.textContent = "app.js load nahi hua. Page refresh karo.";
+    }
+  });
+});
+</script>
 
 </body>
 </html>
