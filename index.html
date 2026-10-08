@@ -1,117 +1,356 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Batch Uploader</title>
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Uploader</title>
 <style>
-*{box-sizing:border-box}
-html,body{margin:0;min-height:100%}
-body{min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f8fafc;background:radial-gradient(circle at 15% 20%,rgba(99,102,241,.22),transparent 32%),radial-gradient(circle at 85% 15%,rgba(168,85,247,.20),transparent 30%),radial-gradient(circle at 50% 100%,rgba(37,99,235,.18),transparent 38%),#070b16;overflow-x:hidden}
-body::before,body::after{content:"";position:fixed;width:280px;height:280px;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0}
-body::before{left:-120px;bottom:-80px;background:rgba(37,99,235,.20)}
-body::after{right:-120px;top:-80px;background:rgba(139,92,246,.18)}
+  :root {
+    --blue: #3b82f6;
+    --green: #10b981;
+    --red: #ef4444;
+    --ink: #1f2937;
+    --muted: #4b5563;
+    --line: #d1d5db;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: Roboto, -apple-system, "Segoe UI", Arial, sans-serif;
+    color: var(--ink);
+    background: #f3f4f6;
+  }
+  body.home { background: linear-gradient(180deg, #eff6ff, #eef2ff); }
+  button { font: inherit; cursor: pointer; border: 0; }
+  button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--blue); outline-offset: 2px;
+  }
 
-.login-screen{position:relative;z-index:10;width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-.login-card{position:relative;width:100%;max-width:430px;padding:38px;border:1px solid rgba(255,255,255,.10);border-radius:20px;background:linear-gradient(145deg,rgba(30,41,59,.86),rgba(15,23,42,.82));backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
-.brand{text-align:center;margin-bottom:32px}
-.logo{width:58px;height:58px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;border-radius:16px;color:#fff;font-size:24px;font-weight:800;background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 12px 35px rgba(79,70,229,.38),inset 0 1px 0 rgba(255,255,255,.25)}
-.brand h1{margin:0;font-size:25px;line-height:1.2;font-weight:750;letter-spacing:-.5px;color:#fff}
-.brand p{margin:9px 0 0;color:#94a3b8;font-size:14px}
-.field{margin-bottom:20px}
-.field label{display:block;margin-bottom:8px;color:#cbd5e1;font-size:13px;font-weight:600}
-.field input,.field select{width:100%;height:48px;padding:0 14px;border:1px solid rgba(148,163,184,.20);border-radius:10px;outline:none;color:#f8fafc;background:rgba(15,23,42,.72);font-size:14px;transition:border-color .2s ease,box-shadow .2s ease,background .2s ease}
-.field input::placeholder{color:#64748b}
-.field input:focus,.field select:focus{border-color:rgba(99,102,241,.85);background:rgba(15,23,42,.95);box-shadow:0 0 0 3px rgba(99,102,241,.12),0 8px 25px rgba(0,0,0,.12)}
-.field select{cursor:pointer}
-.field select option{color:#111827;background:#fff}
-#login-error{min-height:20px;margin:-3px 0 13px;color:#fb7185;font-size:13px;text-align:center}
-#login-button{width:100%;height:49px;border:0;border-radius:10px;color:#fff;background:linear-gradient(135deg,#4f46e5,#7c3aed);font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 12px 30px rgba(79,70,229,.28);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
-#login-button:hover{transform:translateY(-1px);filter:brightness(1.08);box-shadow:0 16px 38px rgba(79,70,229,.38)}
-#login-button:active{transform:translateY(0)}
-#login-button:disabled{opacity:.6;cursor:not-allowed;transform:none}
-.secure{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:22px;color:#64748b;font-size:12px}
-.secure-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px rgba(34,197,94,.65)}
+  /* login */
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); padding: 28px 24px; width: 100%; max-width: 360px; }
+  .card h1 { font-size: 20px; text-align: center; margin: 0 0 20px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+  input, select {
+    width: 100%; padding: 10px 12px; font-size: 15px; border: 1px solid var(--line);
+    border-radius: 6px; background: #fff; color: var(--ink);
+  }
+  select { background: #f3f4f6; }
+  .btn-main { width: 100%; margin-top: 20px; padding: 11px; border-radius: 6px; background: var(--blue); color: #fff; font-weight: 600; }
+  .btn-main:disabled { opacity: .6; }
+  .error { color: #dc2626; font-size: 14px; margin-top: 12px; text-align: center; min-height: 1em; }
 
-#app{display:none;position:relative;z-index:5;min-height:100vh}
+  /* shared top bar */
+  .page { max-width: 760px; margin: 0 auto; padding: 18px 16px 40px; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+  .bar h2 { margin: 0; font-size: 22px; }
+  .bar .right { display: flex; gap: 8px; }
+  .btn-logout { background: var(--red); color: #fff; padding: 9px 16px; border-radius: 8px; font-weight: 600; }
+  .btn-back { background: #6b7280; color: #fff; padding: 9px 14px; border-radius: 6px; font-weight: 600; }
 
-@media(max-width:500px){
-.login-screen{padding:18px}
-.login-card{padding:30px 22px;border-radius:18px}
-.brand h1{font-size:23px}
-}
+  /* home */
+  .home-head { text-align: center; margin: 40px 0 36px; }
+  .home-head h1 { font-size: 40px; line-height: 1.1; margin: 0 0 14px; }
+  .home-head p { margin: 0; color: var(--muted); font-size: 17px; }
+  .tiles { display: grid; gap: 22px; max-width: 520px; margin: 0 auto; }
+  .tile { border-radius: 18px; padding: 44px 20px; color: #fff; text-align: center; box-shadow: 0 8px 18px rgba(0,0,0,.12); }
+  .tile.blue { background: var(--blue); }
+  .tile.green { background: var(--green); }
+  .tile .icon { font-size: 44px; line-height: 1; }
+  .tile h3 { font-size: 30px; margin: 14px 0 8px; }
+  .tile p { margin: 0; font-size: 18px; opacity: .95; }
+
+  /* lists */
+  .item { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.1); padding: 18px 18px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .item .name { font-weight: 600; font-size: 16px; }
+  .item .sub { font-size: 13.5px; color: var(--muted); margin-top: 6px; }
+  .btn-view { background: var(--blue); color: #fff; padding: 9px 14px; border-radius: 5px; font-weight: 600; font-size: 14px; white-space: nowrap; }
+  .note { text-align: center; color: var(--muted); padding: 30px 10px; }
+  .search { margin-bottom: 14px; }
 </style>
 </head>
-
 <body>
-
-<!-- LOGIN SCREEN -->
-<div id="login-screen" class="login-screen">
-  <div class="login-card">
-
-    <div class="brand">
-      <div class="logo">Z</div>
-      <h1>Batch Uploader</h1>
-      <p>Manage your batches and tests securely</p>
-    </div>
-
-    <form id="login-form">
-
-      <div class="field">
-        <label for="auth-token">Auth Token</label>
-        <input id="auth-token" type="password" placeholder="Enter your auth token" autocomplete="off" required>
-      </div>
-
-      <div class="field">
-        <label for="role">Role</label>
-        <select id="role">
-          <option value="batch">Batch Uploader</option>
-        </select>
-      </div>
-
-      <p id="login-error"></p>
-
-      <button id="login-button" type="submit">Login</button>
-
-    </form>
-
-    <div class="secure">
-      <span class="secure-dot"></span>
-      Secure uploader panel
-    </div>
-
-  </div>
-</div>
-
-<!-- APP -->
 <div id="app"></div>
 
-<!-- CONFIG -->
-<script src="./config.js?v=11"></script>
-
-<!-- MAIN APP: login + batch list sab app.js me hai -->
-<script src="./app.js?v=11"></script>
-
-<!-- Form submit ko app.js ke doLogin se jodo -->
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-  var form = document.getElementById("login-form");
-  if (!form) return;
+/* ============ CONFIG ============ */
+const API = 'https://panel1-18e1d76be41d.herokuapp.com';
+const TOKEN_KEY = 'zx_panel_token';
+const ADMIN_USERNAME = 'admin';   // used only for the Admin role
 
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
+const app = document.getElementById('app');
+let batchCache = [];
 
-    if (typeof window.doLogin === "function") {
-      window.doLogin(e);
-    } else {
-      var err = document.getElementById("login-error");
-      err.style.color = "#fb7185";
-      err.textContent = "app.js load nahi hua. Page refresh karo.";
-    }
+/* ============ HELPERS ============ */
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function getToken() {
+  try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; }
+}
+function setToken(t) {
+  try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch {}
+}
+
+function logout() {
+  setToken('');
+  showLogin();
+}
+
+async function api(path) {
+  const res = await fetch(API + path, {
+    headers: { Authorization: 'Bearer ' + getToken() }
   });
-});
-</script>
 
+  if (res.status === 401) {
+    logout();
+    throw new Error('Session expired. Please log in again.');
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.success === false) {
+    throw new Error(data.message || 'Request failed (' + res.status + ')');
+  }
+  return data;
+}
+
+function batchId(b) { return String(b._id || b.id || b.batchId || ''); }
+function batchName(b) { return b.name || b.title || b.batchName || 'Untitled batch'; }
+function batchStatus(b) {
+  const free = b.isFree === true || b.amount === 0 || b.price === 0;
+  return free ? 'Unpaid' : 'Paid';
+}
+
+/* ============ LOGIN ============ */
+function showLogin() {
+  document.body.className = '';
+  document.title = 'Test Uploader - Login';
+
+  app.innerHTML = `
+    <div class="login-wrap">
+      <div class="card">
+        <h1>Test Uploader Login</h1>
+        <label for="tok">Auth Token</label>
+        <input id="tok" type="password" placeholder="Enter your auth token" autocomplete="off">
+        <label for="role">Role</label>
+        <select id="role">
+          <option>Batch Uploader</option>
+          <option>Test Series Uploader</option>
+          <option>Admin</option>
+        </select>
+        <div id="adminBox" style="display:none">
+          <label for="pw">Admin Password</label>
+          <input id="pw" type="password" placeholder="Enter admin password" autocomplete="off">
+        </div>
+        <button class="btn-main" id="go">Login</button>
+        <div class="error" id="err"></div>
+      </div>
+    </div>`;
+
+  const role = document.getElementById('role');
+  role.onchange = () => {
+    document.getElementById('adminBox').style.display =
+      role.value === 'Admin' ? 'block' : 'none';
+  };
+
+  const go = document.getElementById('go');
+  const err = document.getElementById('err');
+
+  async function submit() {
+    err.textContent = '';
+    const token = document.getElementById('tok').value.trim();
+    const pw = document.getElementById('pw').value;
+    const isAdmin = role.value === 'Admin';
+
+    let body;
+    if (isAdmin && pw && !token) body = { username: ADMIN_USERNAME, password: pw };
+    else if (token) body = { authToken: token };
+    else { err.textContent = 'Enter your auth token.'; return; }
+
+    go.disabled = true;
+    go.textContent = 'Logging in...';
+
+    try {
+      const res = await fetch(API + '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.token) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      setToken(data.token);
+      showHome();
+    } catch (e) {
+      err.textContent = e.message === 'Failed to fetch'
+        ? 'Cannot reach the server. Check your connection and try again.'
+        : e.message;
+    } finally {
+      go.disabled = false;
+      go.textContent = 'Login';
+    }
+  }
+
+  go.onclick = submit;
+  document.getElementById('tok').onkeydown = e => { if (e.key === 'Enter') submit(); };
+}
+
+/* ============ HOME ============ */
+function showHome() {
+  document.body.className = 'home';
+  document.title = 'Test Series Uploader';
+
+  app.innerHTML = `
+    <div class="page">
+      <div class="bar" style="justify-content:flex-end">
+        <button class="btn-logout" id="lo">Logout</button>
+      </div>
+      <div class="home-head">
+        <h1>Test Series Uploader</h1>
+        <p>Upload and manage your test series content</p>
+      </div>
+      <div class="tiles">
+        <button class="tile blue" id="t1">
+          <div class="icon">&#128196;</div>
+          <h3>Tests</h3>
+          <p>Upload regular tests</p>
+        </button>
+        <button class="tile green" id="t2">
+          <div class="icon">&#128214;</div>
+          <h3>DPPs</h3>
+          <p>Upload daily practice problems</p>
+        </button>
+      </div>
+    </div>`;
+
+  document.getElementById('lo').onclick = logout;
+  document.getElementById('t1').onclick = () => showBatches('tests');
+  document.getElementById('t2').onclick = () => showBatches('dpps');
+}
+
+/* ============ BATCH LIST ============ */
+async function showBatches(mode) {
+  document.body.className = '';
+  document.title = 'Test Uploader - Batches';
+
+  app.innerHTML = `
+    <div class="page">
+      <div class="bar">
+        <h2>Your Batches</h2>
+        <div class="right">
+          <button class="btn-back" id="bk">Back to Selection</button>
+          <button class="btn-logout" id="lo">Logout</button>
+        </div>
+      </div>
+      <input class="search" id="q" placeholder="Search batch..." style="display:none">
+      <div id="list"><div class="note">Loading your batches...</div></div>
+    </div>`;
+
+  document.getElementById('bk').onclick = showHome;
+  document.getElementById('lo').onclick = logout;
+
+  const list = document.getElementById('list');
+  const q = document.getElementById('q');
+
+  function draw(filter) {
+    const f = (filter || '').toLowerCase();
+    const rows = batchCache.filter(b => batchName(b).toLowerCase().includes(f));
+
+    if (!rows.length) {
+      list.innerHTML = '<div class="note">No batches found for this token.</div>';
+      return;
+    }
+
+    list.innerHTML = rows.map(b => `
+      <div class="item">
+        <div>
+          <div class="name">${esc(batchName(b))}</div>
+          <div class="sub">Status: ${batchStatus(b)}</div>
+        </div>
+        <button class="btn-view" data-id="${esc(batchId(b))}">
+          View ${mode === 'dpps' ? 'DPPs' : 'Tests'}
+        </button>
+      </div>`).join('');
+
+    list.querySelectorAll('.btn-view').forEach(btn => {
+      btn.onclick = () => {
+        const b = batchCache.find(x => batchId(x) === btn.dataset.id);
+        showContent(b, mode);
+      };
+    });
+  }
+
+  try {
+    const data = await api('/api/admin/source/batches');
+    batchCache = data.batches || [];
+    q.style.display = 'block';
+    q.oninput = () => draw(q.value);
+    draw('');
+  } catch (e) {
+    list.innerHTML = '<div class="note">' + esc(e.message) + '</div>';
+  }
+}
+
+/* ============ TESTS / DPPs OF A BATCH ============ */
+async function showContent(batch, mode) {
+  const label = mode === 'dpps' ? 'DPPs' : 'Tests';
+  document.title = 'Test Uploader - ' + label;
+
+  app.innerHTML = `
+    <div class="page">
+      <div class="bar">
+        <h2>${esc(batchName(batch))}</h2>
+        <div class="right">
+          <button class="btn-back" id="bk">Back to Batches</button>
+          <button class="btn-logout" id="lo">Logout</button>
+        </div>
+      </div>
+      <div id="list"><div class="note">Loading ${label.toLowerCase()}...</div></div>
+    </div>`;
+
+  document.getElementById('bk').onclick = () => showBatches(mode);
+  document.getElementById('lo').onclick = logout;
+
+  const list = document.getElementById('list');
+
+  try {
+    const data = await api(
+      '/api/admin/source/batches/' + encodeURIComponent(batchId(batch)) +
+      '/' + (mode === 'dpps' ? 'dpps' : 'tests')
+    );
+
+    const items = data.items || [];
+
+    if (!items.length) {
+      list.innerHTML = '<div class="note">No ' + label.toLowerCase() + ' found in this batch.</div>';
+      return;
+    }
+
+    list.innerHTML = items.map(t => {
+      const name = t.name || t.title || t.testName || 'Untitled';
+      const when = t.startTime || t.date || t.createdAt || '';
+      const sub = when ? new Date(when).toLocaleString() : '';
+      return `
+        <div class="item">
+          <div>
+            <div class="name">${esc(name)}</div>
+            ${sub && sub !== 'Invalid Date' ? '<div class="sub">' + esc(sub) + '</div>' : ''}
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = '<div class="note">' + esc(e.message) + '</div>';
+  }
+}
+
+/* ============ START ============ */
+if (getToken()) showHome(); else showLogin();
+</script>
 </body>
 </html>
