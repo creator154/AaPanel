@@ -67,6 +67,19 @@
   .btn-view { background: var(--blue); color: #fff; padding: 9px 14px; border-radius: 5px; font-weight: 600; font-size: 14px; white-space: nowrap; }
   .note { text-align: center; color: var(--muted); padding: 30px 10px; }
   .search { margin-bottom: 14px; }
+  .tile.slate { background: #6366f1; }
+  .section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.1); padding: 18px; margin-bottom: 18px; }
+  .section h3 { margin: 0 0 6px; font-size: 17px; }
+  .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .row > input { flex: 1; min-width: 140px; }
+  .row > select { width: auto; }
+  .btn-ghost { background: #e5e7eb; color: var(--ink); padding: 9px 12px; border-radius: 5px; font-weight: 600; font-size: 14px; }
+  .btn-del { background: #fee2e2; color: #b91c1c; padding: 9px 12px; border-radius: 5px; font-weight: 600; font-size: 14px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .checks label { display: flex; align-items: center; gap: 10px; font-weight: 400; font-size: 15px; margin: 8px 0; }
+  .checks input { width: auto; }
+  .tokenbox { margin-top: 12px; padding: 12px; border-radius: 6px; background: #ecfdf5; border: 1px solid #a7f3d0; word-break: break-all; font-family: monospace; font-size: 13px; }
+  .msg { font-size: 14px; margin-top: 10px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -95,14 +108,27 @@ function setToken(t) {
   try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch {}
 }
 
+function getScope() {
+  try { return localStorage.getItem(TOKEN_KEY + '_scope') || ''; } catch { return ''; }
+}
+function setScope(s) {
+  try { localStorage.setItem(TOKEN_KEY + '_scope', s || ''); } catch {}
+}
+
 function logout() {
   setToken('');
+  setScope('');
   showLogin();
 }
 
-async function api(path) {
+async function api(path, method = 'GET', body) {
+  const headers = { Authorization: 'Bearer ' + getToken() };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
   const res = await fetch(API + path, {
-    headers: { Authorization: 'Bearer ' + getToken() }
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined
   });
 
   if (res.status === 401) {
@@ -120,8 +146,7 @@ async function api(path) {
 function batchId(b) { return String(b._id || b.id || b.batchId || ''); }
 function batchName(b) { return b.name || b.title || b.batchName || 'Untitled batch'; }
 function batchStatus(b) {
-  const free = b.isFree === true || b.amount === 0 || b.price === 0;
-  return free ? 'Unpaid' : 'Paid';
+  return b.status || 'Paid';
 }
 
 /* ============ LOGIN ============ */
@@ -186,6 +211,7 @@ function showLogin() {
       }
 
       setToken(data.token);
+      setScope(data.scope);
       showHome();
     } catch (e) {
       err.textContent = e.message === 'Failed to fetch'
@@ -226,12 +252,20 @@ function showHome() {
           <h3>DPPs</h3>
           <p>Upload daily practice problems</p>
         </button>
+        ${getScope() === 'all' ? `
+        <button class="tile slate" id="t3">
+          <div class="icon">&#9881;</div>
+          <h3>Admin</h3>
+          <p>Add batches and create tokens</p>
+        </button>` : ''}
       </div>
     </div>`;
 
   document.getElementById('lo').onclick = logout;
   document.getElementById('t1').onclick = () => showBatches('tests');
   document.getElementById('t2').onclick = () => showBatches('dpps');
+  const t3 = document.getElementById('t3');
+  if (t3) t3.onclick = showAdmin;
 }
 
 /* ============ BATCH LIST ============ */
@@ -287,7 +321,7 @@ async function showBatches(mode) {
   }
 
   try {
-    const data = await api('/api/admin/source/batches');
+    const data = await api('/api/admin/batches');
     batchCache = data.batches || [];
     q.style.display = 'block';
     q.oninput = () => draw(q.value);
@@ -300,6 +334,7 @@ async function showBatches(mode) {
 /* ============ TESTS / DPPs OF A BATCH ============ */
 async function showContent(batch, mode) {
   const label = mode === 'dpps' ? 'DPPs' : 'Tests';
+  const type = mode === 'dpps' ? 'dpps' : 'tests';
   document.title = 'Test Uploader - ' + label;
 
   app.innerHTML = `
@@ -319,34 +354,194 @@ async function showContent(batch, mode) {
 
   const list = document.getElementById('list');
 
-  try {
-    const data = await api(
-      '/api/admin/source/batches/' + encodeURIComponent(batchId(batch)) +
-      '/' + (mode === 'dpps' ? 'dpps' : 'tests')
-    );
+  async function load() {
+    try {
+      const data = await api(
+        '/api/admin/batches/' + encodeURIComponent(batchId(batch)) + '/content/' + type
+      );
+      const items = data.items || [];
 
-    const items = data.items || [];
+      if (!items.length) {
+        list.innerHTML = '<div class="note">No ' + label.toLowerCase() + ' uploaded in this batch yet.</div>';
+        return;
+      }
 
-    if (!items.length) {
-      list.innerHTML = '<div class="note">No ' + label.toLowerCase() + ' found in this batch.</div>';
-      return;
-    }
-
-    list.innerHTML = items.map(t => {
-      const name = t.name || t.title || t.testName || 'Untitled';
-      const when = t.startTime || t.date || t.createdAt || '';
-      const sub = when ? new Date(when).toLocaleString() : '';
-      return `
+      list.innerHTML = items.map(t => `
         <div class="item">
           <div>
-            <div class="name">${esc(name)}</div>
-            ${sub && sub !== 'Invalid Date' ? '<div class="sub">' + esc(sub) + '</div>' : ''}
+            <div class="name">${esc(t.title || 'Untitled')}</div>
+            <div class="sub">${esc(t.totalQuestions || 0)} questions &middot; ${t.published ? 'Published' : 'Hidden'}</div>
           </div>
-        </div>`;
-    }).join('');
-  } catch (e) {
-    list.innerHTML = '<div class="note">' + esc(e.message) + '</div>';
+          <div class="actions">
+            <button class="btn-ghost" data-pub="${esc(t._id)}" data-to="${t.published ? 'unpublish' : 'publish'}">${t.published ? 'Hide' : 'Publish'}</button>
+            <button class="btn-del" data-del="${esc(t._id)}">Delete</button>
+          </div>
+        </div>`).join('');
+
+      list.querySelectorAll('[data-pub]').forEach(btn => {
+        btn.onclick = async () => {
+          try { await api('/api/admin/content/' + btn.dataset.pub + '/' + btn.dataset.to, 'POST'); load(); }
+          catch (e) { alert(e.message); }
+        };
+      });
+
+      list.querySelectorAll('[data-del]').forEach(btn => {
+        btn.onclick = async () => {
+          if (!confirm('Delete this item?')) return;
+          try { await api('/api/admin/content/' + btn.dataset.del, 'DELETE'); load(); }
+          catch (e) { alert(e.message); }
+        };
+      });
+    } catch (e) {
+      list.innerHTML = '<div class="note">' + esc(e.message) + '</div>';
+    }
   }
+
+  load();
+}
+
+/* ============ ADMIN ============ */
+async function showAdmin() {
+  document.body.className = '';
+  document.title = 'Test Uploader - Admin';
+
+  app.innerHTML = `
+    <div class="page">
+      <div class="bar">
+        <h2>Admin</h2>
+        <div class="right">
+          <button class="btn-back" id="bk">Back to Selection</button>
+          <button class="btn-logout" id="lo">Logout</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Add batch</h3>
+        <div class="row">
+          <input id="bn" placeholder="Batch name">
+          <select id="bs"><option>Paid</option><option>Unpaid</option></select>
+          <button class="btn-view" id="ba">Add batch</button>
+        </div>
+        <div class="msg" id="bmsg"></div>
+      </div>
+
+      <div class="section">
+        <h3>Create token</h3>
+        <div class="msg">Choose the batches this token can open.</div>
+        <div class="row"><input id="tn" placeholder="Token name (for example, Rahul)"></div>
+        <div class="checks" id="checks"></div>
+        <div class="row"><button class="btn-view" id="tc">Create token</button></div>
+        <div class="msg" id="tmsg"></div>
+        <div id="tbox"></div>
+      </div>
+
+      <div class="section">
+        <h3>Tokens</h3>
+        <div id="tokens"><div class="note">Loading...</div></div>
+      </div>
+
+      <div class="section">
+        <h3>Batches</h3>
+        <div id="batches"><div class="note">Loading...</div></div>
+      </div>
+    </div>`;
+
+  document.getElementById('bk').onclick = showHome;
+  document.getElementById('lo').onclick = logout;
+
+  const bmsg = document.getElementById('bmsg');
+  const tmsg = document.getElementById('tmsg');
+
+  async function refresh() {
+    try {
+      const [b, t] = await Promise.all([
+        api('/api/admin/batches'),
+        api('/api/admin/uploader-tokens')
+      ]);
+      const batches = b.batches || [];
+      const tokens = t.tokens || [];
+
+      document.getElementById('checks').innerHTML = batches.length
+        ? batches.map(x => `
+            <label><input type="checkbox" value="${esc(batchId(x))}"> ${esc(batchName(x))}</label>`).join('')
+        : '<div class="note">Add a batch first.</div>';
+
+      document.getElementById('tokens').innerHTML = tokens.length
+        ? tokens.map(x => `
+            <div class="item">
+              <div>
+                <div class="name">${esc(x.name)}</div>
+                <div class="sub">${x.active ? 'Active' : 'Revoked'} &middot; ${(x.batches || []).length} batches</div>
+              </div>
+              ${x.active ? `<button class="btn-del" data-rev="${esc(x.id)}">Revoke</button>` : ''}
+            </div>`).join('')
+        : '<div class="note">No tokens yet.</div>';
+
+      document.getElementById('batches').innerHTML = batches.length
+        ? batches.map(x => `
+            <div class="item">
+              <div>
+                <div class="name">${esc(batchName(x))}</div>
+                <div class="sub">Status: ${esc(batchStatus(x))}</div>
+              </div>
+              <button class="btn-del" data-delb="${esc(batchId(x))}">Delete</button>
+            </div>`).join('')
+        : '<div class="note">No batches yet.</div>';
+
+      document.querySelectorAll('[data-rev]').forEach(btn => {
+        btn.onclick = async () => {
+          if (!confirm('Revoke this token?')) return;
+          try { await api('/api/admin/uploader-tokens/' + btn.dataset.rev, 'DELETE'); refresh(); }
+          catch (e) { alert(e.message); }
+        };
+      });
+
+      document.querySelectorAll('[data-delb]').forEach(btn => {
+        btn.onclick = async () => {
+          if (!confirm('Delete this batch and all its tests?')) return;
+          try { await api('/api/admin/batches/' + btn.dataset.delb, 'DELETE'); refresh(); }
+          catch (e) { alert(e.message); }
+        };
+      });
+    } catch (e) {
+      document.getElementById('tokens').innerHTML = '<div class="note">' + esc(e.message) + '</div>';
+    }
+  }
+
+  document.getElementById('ba').onclick = async () => {
+    const name = document.getElementById('bn').value.trim();
+    bmsg.textContent = '';
+    if (!name) { bmsg.textContent = 'Enter a batch name.'; return; }
+    try {
+      await api('/api/admin/batches', 'POST', {
+        name,
+        status: document.getElementById('bs').value
+      });
+      document.getElementById('bn').value = '';
+      bmsg.textContent = 'Batch added.';
+      refresh();
+    } catch (e) { bmsg.textContent = e.message; }
+  };
+
+  document.getElementById('tc').onclick = async () => {
+    const name = document.getElementById('tn').value.trim();
+    const ids = [...document.querySelectorAll('#checks input:checked')].map(i => i.value);
+    tmsg.textContent = '';
+    document.getElementById('tbox').innerHTML = '';
+
+    if (!name) { tmsg.textContent = 'Enter a token name.'; return; }
+    if (!ids.length) { tmsg.textContent = 'Select at least one batch.'; return; }
+
+    try {
+      const data = await api('/api/admin/uploader-tokens', 'POST', { name, batchIds: ids });
+      document.getElementById('tn').value = '';
+      tmsg.textContent = 'Token created. Copy it now. It is shown only once.';
+      document.getElementById('tbox').innerHTML = '<div class="tokenbox">' + esc(data.token) + '</div>';
+      refresh();
+    } catch (e) { tmsg.textContent = e.message; }
+  };
+
+  refresh();
 }
 
 /* ============ START ============ */
