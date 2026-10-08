@@ -12,24 +12,24 @@ const S = {
 
   uploading: new Set(),
   success: new Set(),
-  skipped: new Set()
+  skipped: new Set(),
+
+  uploadedIds: new Set(),
+  uploadedTitles: new Set()
 };
 
 
-/* =====================================================
+/* =========================================================
    API
-===================================================== */
+========================================================= */
 
 function API() {
-  return (
-    window.ZX_CONFIG?.API_BASE ||
-    "https://panel1-18e1d76be41d.herokuapp.com"
-  ).replace(/\/$/, "");
+  return (window.ZX_CONFIG?.API_BASE || "")
+    .replace(/\/$/, "");
 }
 
 
 async function req(path, options = {}) {
-
   const headers = {
     ...(options.body
       ? { "Content-Type": "application/json" }
@@ -41,13 +41,10 @@ async function req(path, options = {}) {
     headers.Authorization = `Bearer ${S.token}`;
   }
 
-  const response = await fetch(
-    `${API()}${path}`,
-    {
-      ...options,
-      headers
-    }
-  );
+  const response = await fetch(`${API()}${path}`, {
+    ...options,
+    headers
+  });
 
   let data = {};
 
@@ -74,806 +71,91 @@ async function req(path, options = {}) {
 }
 
 
-/* =====================================================
-   PREMIUM UI
-===================================================== */
-
-function addPanelStyles() {
-
-  if ($("#zx-panel-styles")) return;
-
-  const style = document.createElement("style");
-
-  style.id = "zx-panel-styles";
-
-  style.textContent = `
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family:
-        Inter,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-
-      background:
-        radial-gradient(
-          circle at top left,
-          #312e81 0,
-          transparent 35%
-        ),
-        radial-gradient(
-          circle at top right,
-          #581c87 0,
-          transparent 35%
-        ),
-        #05070d;
-
-      color: #fff;
-    }
-
-
-    /* ================= LOGIN ================= */
-
-    #login-screen {
-
-      min-height: 100vh;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      padding: 24px;
-
-      background:
-        radial-gradient(
-          circle at 20% 20%,
-          rgba(99,102,241,.28),
-          transparent 35%
-        ),
-        radial-gradient(
-          circle at 80% 80%,
-          rgba(168,85,247,.22),
-          transparent 35%
-        ),
-        #05070d;
-    }
-
-
-    .zx-login-card {
-
-      width: 100%;
-      max-width: 430px;
-
-      padding: 38px 32px;
-
-      border-radius: 26px;
-
-      background:
-        linear-gradient(
-          145deg,
-          rgba(24,29,45,.97),
-          rgba(10,13,22,.97)
-        );
-
-      border: 1px solid rgba(255,255,255,.10);
-
-      box-shadow:
-        0 30px 100px rgba(0,0,0,.55),
-        inset 0 1px 0 rgba(255,255,255,.05);
-
-      text-align: center;
-    }
-
-
-    .zx-login-logo {
-
-      width: 68px;
-      height: 68px;
-
-      margin: 0 auto 20px;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      border-radius: 20px;
-
-      background:
-        linear-gradient(
-          135deg,
-          #6366f1,
-          #8b5cf6
-        );
-
-      font-size: 30px;
-
-      box-shadow:
-        0 15px 40px rgba(99,102,241,.35);
-    }
-
-
-    .zx-login-title {
-
-      font-size: 28px;
-      font-weight: 850;
-
-      letter-spacing: -.5px;
-    }
-
-
-    .zx-login-sub {
-
-      margin-top: 8px;
-
-      color: #8f98ad;
-
-      font-size: 14px;
-    }
-
-
-    .zx-login-label {
-
-      display: block;
-
-      margin-top: 28px;
-      margin-bottom: 8px;
-
-      text-align: left;
-
-      color: #cbd5e1;
-
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-
-    .zx-login-input {
-
-      width: 100%;
-
-      padding: 15px 16px;
-
-      border-radius: 13px;
-
-      border: 1px solid rgba(255,255,255,.10);
-
-      background: #080b13;
-
-      color: #fff;
-
-      outline: none;
-
-      font-size: 15px;
-    }
-
-
-    .zx-login-input:focus {
-
-      border-color: #6366f1;
-
-      box-shadow:
-        0 0 0 3px rgba(99,102,241,.12);
-    }
-
-
-    .zx-login-button {
-
-      width: 100%;
-
-      margin-top: 18px;
-
-      padding: 14px;
-
-      border: 0;
-      border-radius: 13px;
-
-      background:
-        linear-gradient(
-          135deg,
-          #6366f1,
-          #8b5cf6
-        );
-
-      color: #fff;
-
-      font-size: 15px;
-      font-weight: 800;
-
-      cursor: pointer;
-
-      box-shadow:
-        0 12px 30px rgba(99,102,241,.25);
-    }
-
-
-    .zx-login-button:disabled {
-
-      opacity: .55;
-      cursor: wait;
-    }
-
-
-    #login-error {
-
-      min-height: 20px;
-
-      margin-top: 13px;
-
-      color: #f87171;
-
-      font-size: 13px;
-    }
-
-
-    /* ================= APP ================= */
-
-    #app {
-
-      min-height: 100vh;
-
-      padding: 24px;
-
-      background:
-        radial-gradient(
-          circle at 10% 0%,
-          rgba(99,102,241,.18),
-          transparent 30%
-        ),
-        radial-gradient(
-          circle at 90% 10%,
-          rgba(168,85,247,.14),
-          transparent 30%
-        ),
-        #060912;
-    }
-
-
-    .zx-wrap {
-
-      width: min(1120px, 100%);
-
-      margin: auto;
-    }
-
-
-    .zx-top {
-
-      display: flex;
-
-      align-items: center;
-      justify-content: space-between;
-
-      gap: 15px;
-
-      margin-bottom: 24px;
-    }
-
-
-    .zx-title {
-
-      font-size: 27px;
-      font-weight: 850;
-
-      letter-spacing: -.5px;
-    }
-
-
-    .zx-sub {
-
-      margin-top: 5px;
-
-      color: #8b95aa;
-
-      font-size: 13px;
-    }
-
-
-    .zx-card {
-
-      padding: 22px;
-
-      border-radius: 22px;
-
-      background:
-        rgba(15,19,31,.92);
-
-      border: 1px solid rgba(255,255,255,.07);
-
-      box-shadow:
-        0 25px 70px rgba(0,0,0,.28);
-    }
-
-
-    .zx-actions {
-
-      display: flex;
-
-      flex-wrap: wrap;
-
-      gap: 9px;
-
-      margin-bottom: 18px;
-    }
-
-
-    .zx-btn {
-
-      padding: 11px 16px;
-
-      border: 0;
-      border-radius: 11px;
-
-      background:
-        linear-gradient(
-          135deg,
-          #6366f1,
-          #7c3aed
-        );
-
-      color: #fff;
-
-      font-weight: 750;
-
-      cursor: pointer;
-    }
-
-
-    .zx-btn.secondary {
-
-      background: #202536;
-    }
-
-
-    .zx-btn:disabled {
-
-      opacity: .55;
-
-      cursor: not-allowed;
-    }
-
-
-    /* ================= HOME ================= */
-
-    .zx-dashboard-grid {
-
-      display: grid;
-
-      grid-template-columns:
-        repeat(2, minmax(0, 1fr));
-
-      gap: 18px;
-
-      margin-top: 22px;
-    }
-
-
-    .zx-type-card {
-
-      min-height: 210px;
-
-      padding: 28px;
-
-      border: 0;
-
-      border-radius: 22px;
-
-      text-align: left;
-
-      color: #fff;
-
-      cursor: pointer;
-
-      transition:
-        transform .2s,
-        box-shadow .2s;
-    }
-
-
-    .zx-type-card:hover {
-
-      transform: translateY(-3px);
-    }
-
-
-    .zx-type-card.test {
-
-      background:
-        linear-gradient(
-          135deg,
-          #3730a3,
-          #4f46e5,
-          #6366f1
-        );
-
-      box-shadow:
-        0 20px 50px rgba(79,70,229,.22);
-    }
-
-
-    .zx-type-card.dpp {
-
-      background:
-        linear-gradient(
-          135deg,
-          #9a3412,
-          #ea580c,
-          #f97316
-        );
-
-      box-shadow:
-        0 20px 50px rgba(234,88,12,.20);
-    }
-
-
-    .zx-type-icon {
-
-      font-size: 34px;
-
-      margin-bottom: 25px;
-    }
-
-
-    .zx-type-title {
-
-      font-size: 26px;
-
-      font-weight: 850;
-    }
-
-
-    .zx-type-description {
-
-      margin-top: 8px;
-
-      color: rgba(255,255,255,.78);
-
-      font-size: 14px;
-    }
-
-
-    /* ================= SEARCH ================= */
-
-    .zx-search {
-
-      width: 100%;
-
-      padding: 14px 16px;
-
-      margin-bottom: 17px;
-
-      border-radius: 12px;
-
-      border: 1px solid rgba(255,255,255,.09);
-
-      outline: none;
-
-      background: #090d16;
-
-      color: #fff;
-
-      font-size: 14px;
-    }
-
-
-    /* ================= LIST ================= */
-
-    .zx-list {
-
-      display: grid;
-
-      gap: 11px;
-    }
-
-
-    .zx-row {
-
-      display: flex;
-
-      align-items: center;
-
-      justify-content: space-between;
-
-      gap: 15px;
-
-      padding: 17px;
-
-      border-radius: 15px;
-
-      background: #111622;
-
-      border: 1px solid rgba(255,255,255,.06);
-    }
-
-
-    .zx-row-title {
-
-      font-weight: 750;
-
-      overflow-wrap: anywhere;
-    }
-
-
-    .zx-row-sub {
-
-      margin-top: 6px;
-
-      color: #818ba0;
-
-      font-size: 12px;
-    }
-
-
-    .zx-empty,
-    .zx-loading {
-
-      padding: 40px 15px;
-
-      text-align: center;
-
-      color: #858ea2;
-    }
-
-
-    /* ================= STATUS ================= */
-
-    .zx-status {
-
-      display: inline-flex;
-
-      margin-left: 8px;
-
-      padding: 4px 8px;
-
-      border-radius: 999px;
-
-      font-size: 10px;
-
-      font-weight: 800;
-    }
-
-
-    .zx-status.success {
-
-      background: rgba(34,197,94,.12);
-
-      color: #86efac;
-    }
-
-
-    .zx-status.skipped {
-
-      background: rgba(148,163,184,.12);
-
-      color: #cbd5e1;
-    }
-
-
-    .zx-progress {
-
-      height: 8px;
-
-      margin: 12px 0 20px;
-
-      overflow: hidden;
-
-      border-radius: 99px;
-
-      background: #252b3b;
-    }
-
-
-    .zx-progress-bar {
-
-      height: 100%;
-
-      background:
-        linear-gradient(
-          90deg,
-          #6366f1,
-          #22c55e
-        );
-
-      transition: width .25s;
-    }
-
-
-    .zx-progress-text {
-
-      margin-bottom: 8px;
-
-      color: #a5b4fc;
-
-      font-size: 13px;
-    }
-
-
-    /* ================= MOBILE ================= */
-
-    @media(max-width:700px) {
-
-      #app {
-        padding: 14px;
-      }
-
-      .zx-dashboard-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .zx-row {
-
-        align-items: flex-start;
-
-        flex-direction: column;
-      }
-
-      .zx-row .zx-btn {
-
-        width: 100%;
-      }
-
-      .zx-top {
-
-        align-items: flex-start;
-      }
-
-      .zx-title {
-        font-size: 23px;
-      }
-
-      .zx-login-card {
-        padding: 32px 23px;
-      }
-
-    }
-
-  `;
-
-  document.head.appendChild(style);
-}
-
-
-/* =====================================================
+/* =========================================================
    LOGIN
-===================================================== */
+========================================================= */
 
 function showLogin() {
-
-  addPanelStyles();
-
   const login = $("#login-screen");
   const app = $("#app");
 
   if (login) {
-
     login.style.display = "flex";
-
-    login.innerHTML = `
-
-      <div class="zx-login-card">
-
-        <div class="zx-login-logo">
-          📝
-        </div>
-
-        <div class="zx-login-title">
-          Test Uploader
-        </div>
-
-        <div class="zx-login-sub">
-          Secure Batch Uploader Panel
-        </div>
-
-        <form onsubmit="doLogin(event)">
-
-          <label class="zx-login-label">
-            Auth Token
-          </label>
-
-          <input
-            id="auth-token"
-            class="zx-login-input"
-            type="password"
-            placeholder="Enter your auth token"
-            autocomplete="off"
-          >
-
-          <button
-            id="login-button"
-            class="zx-login-button"
-            type="submit"
-          >
-            Login
-          </button>
-
-          <div id="login-error"></div>
-
-        </form>
-
-      </div>
-
-    `;
   }
 
   if (app) {
     app.style.display = "none";
   }
+
+  const error = $("#login-error");
+
+  if (error) {
+    error.textContent = "";
+  }
 }
 
 
 function showApp() {
+  const login = $("#login-screen");
+  const app = $("#app");
 
-  addPanelStyles();
-
-  if ($("#login-screen")) {
-    $("#login-screen").style.display = "none";
+  if (login) {
+    login.style.display = "none";
   }
 
-  if ($("#app")) {
-    $("#app").style.display = "block";
+  if (app) {
+    app.style.display = "block";
   }
 }
 
 
 async function doLogin(event) {
-
   event?.preventDefault();
 
   const input = $("#auth-token");
   const button = $("#login-button");
   const error = $("#login-error");
 
-  const authToken =
-    input?.value.trim() || "";
+  const authToken = input?.value.trim() || "";
 
   if (!authToken) {
-
     if (error) {
-      error.textContent =
-        "Auth Token required";
+      error.textContent = "Auth Token required";
     }
 
     return;
   }
 
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Signing in...";
+  }
 
-  button.disabled = true;
-  button.textContent = "Signing in...";
-
+  if (error) {
+    error.textContent = "";
+  }
 
   try {
+    const response = await fetch(
+      `${API()}/api/auth/login`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          authToken
+        })
+      }
+    );
 
-    const response =
-      await fetch(
-        `${API()}/api/auth/login`,
-        {
-          method: "POST",
+    let data = {};
 
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify({
-              authToken
-            })
-        }
-      );
-
-
-    const data =
-      await response.json();
-
+    try {
+      data = await response.json();
+    } catch (_) {}
 
     if (!response.ok) {
-
       throw new Error(
         data.message ||
         data.error ||
@@ -881,18 +163,14 @@ async function doLogin(event) {
       );
     }
 
-
     if (!data.token) {
-
       throw new Error(
         "Server did not return login token"
       );
     }
 
-
     S.token = data.token;
     S.scope = data.scope || "all";
-
 
     localStorage.setItem(
       "zx_admin_token",
@@ -904,1458 +182,1054 @@ async function doLogin(event) {
       S.scope
     );
 
-
     showApp();
 
     await home();
 
-
   } catch (err) {
-
     if (error) {
-
       error.textContent =
-        err.message ||
-        "Login failed";
+        err.message || "Login failed";
     }
 
   } finally {
-
-    button.disabled = false;
-    button.textContent = "Login";
-
-  }
-}
-
-
-/* =====================================================
-   SHELL
-===================================================== */
-
-function shell(title, body) {
-
-  addPanelStyles();
-
-  const app = $("#app");
-
-  if (!app) {
-    throw new Error("#app not found");
-  }
-
-
-  app.innerHTML = `
-
-    <div class="zx-wrap">
-
-      <div class="zx-top">
-
-        <div>
-
-          <div class="zx-title">
-            ${escapeHtml(title)}
-          </div>
-
-          <div class="zx-sub">
-            Batch Uploader Panel
-          </div>
-
-        </div>
-
-        <div class="zx-actions">
-
-          <button
-            class="zx-btn secondary"
-            onclick="home()"
-          >
-            Dashboard
-          </button>
-
-          <button
-            class="zx-btn secondary"
-            onclick="logout()"
-          >
-            Logout
-          </button>
-
-        </div>
-
-      </div>
-
-      ${body}
-
-    </div>
-
-  `;
-
-  app.style.display = "block";
-}
-
-
-/* =====================================================
-   HOME
-===================================================== */
-
-async function home() {
-
-  showApp();
-
-  shell(
-    "Batch Uploader",
-    `
-
-    <div class="zx-card">
-
-      <div class="zx-title"
-           style="font-size:19px">
-
-        What do you want to upload?
-
-      </div>
-
-      <div class="zx-sub">
-
-        Select Tests or DPPs to continue
-
-      </div>
-
-
-      <div class="zx-dashboard-grid">
-
-        <div
-          class="zx-type-card test"
-          onclick="batches('test')"
-        >
-
-          <div class="zx-type-icon">
-            📝
-          </div>
-
-          <div class="zx-type-title">
-            Tests
-          </div>
-
-          <div class="zx-type-description">
-            Browse batches and upload test papers.
-          </div>
-
-        </div>
-
-
-        <div
-          class="zx-type-card dpp"
-          onclick="batches('dpp')"
-        >
-
-          <div class="zx-type-icon">
-            📚
-          </div>
-
-          <div class="zx-type-title">
-            DPPs
-          </div>
-
-          <div class="zx-type-description">
-            Browse batches and upload practice problems.
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-    `
-  );
-}
-
-
-/* =====================================================
-   BATCHES
-===================================================== */
-
-async function batches(type) {
-
-  S.type =
-    type === "dpp"
-      ? "dpp"
-      : "test";
-
-  S.batch = null;
-  S.sourceItems = [];
-
-
-  shell(
-    S.type === "test"
-      ? "Tests • Select Batch"
-      : "DPPs • Select Batch",
-
-    `
-
-    <div class="zx-card">
-
-      <div class="zx-actions">
-
-        <button
-          class="zx-btn ${
-            S.type === "test"
-              ? ""
-              : "secondary"
-          }"
-          onclick="batches('test')"
-        >
-          📝 Tests
-        </button>
-
-
-        <button
-          class="zx-btn ${
-            S.type === "dpp"
-              ? ""
-              : "secondary"
-          }"
-          onclick="batches('dpp')"
-        >
-          📚 DPPs
-        </button>
-
-      </div>
-
-
-      <input
-        id="batch-search"
-        class="zx-search"
-        placeholder="Search batch..."
-        oninput="filterBatches()"
-      >
-
-
-      <div id="batch-list">
-
-        <div class="zx-loading">
-          Loading batches...
-        </div>
-
-      </div>
-
-    </div>
-
-    `
-  );
-
-
-  try {
-
-    const data =
-      await req(
-        "/api/admin/source/batches"
-      );
-
-
-    const raw =
-      data.batches ||
-      data.data?.batches ||
-      data.data?.items ||
-      data.data?.data ||
-      data.data ||
-      [];
-
-
-    const sourceBatches =
-      Array.isArray(raw)
-        ? raw
-            .map(normalizeBatch)
-            .filter(
-              x => x.id
-            )
-        : [];
-
-
-    let localBatches = [];
-
-
-    try {
-
-      const localData =
-        await req(
-          "/api/admin/batches"
-        );
-
-
-      localBatches =
-        (localData.batches || [])
-          .map(b => ({
-            ...b,
-
-            id:
-              String(
-                b._id ||
-                b.id ||
-                ""
-              ),
-
-            sourceBatchId:
-              String(
-                b.sourceBatchId ||
-                ""
-              )
-          }));
-
-    } catch (e) {
-
-      console.warn(
-        "Local batches unavailable:",
-        e.message
-      );
-
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Login";
     }
-
-
-    S.batches =
-      sourceBatches.map(source => {
-
-        const local =
-          localBatches.find(
-            b =>
-              String(
-                b.sourceBatchId
-              ) ===
-              String(source.id)
-          );
-
-
-        return {
-
-          ...source,
-
-          id:
-            String(source.id),
-
-          sourceBatchId:
-            String(source.id),
-
-          localId:
-            local
-              ? String(local.id)
-              : "",
-
-          name:
-            String(
-              source.name ||
-              source.title ||
-              "Unnamed Batch"
-            )
-
-        };
-
-      });
-
-
-    renderBatches();
-
-
-  } catch (error) {
-
-    const box =
-      $("#batch-list");
-
-    if (box) {
-
-      box.innerHTML = `
-
-        <div class="zx-empty">
-
-          ${escapeHtml(
-            error.message
-          )}
-
-          <br><br>
-
-          <button
-            class="zx-btn"
-            onclick="batches('${S.type}')"
-          >
-            Retry
-          </button>
-
-        </div>
-
-      `;
-
-    }
-
   }
-}
-
-
-function renderBatches() {
-
-  drawBatchList(
-    S.batches
-  );
-
-}
-
-
-function filterBatches() {
-
-  const q =
-    (
-      $("#batch-search")?.value ||
-      ""
-    )
-      .trim()
-      .toLowerCase();
-
-
-  drawBatchList(
-    S.batches.filter(
-      b =>
-        String(
-          b.name || ""
-        )
-          .toLowerCase()
-          .includes(q)
-    )
-  );
-
-}
-
-
-function drawBatchList(list) {
-
-  const box =
-    $("#batch-list");
-
-  if (!box) return;
-
-
-  if (!list.length) {
-
-    box.innerHTML = `
-      <div class="zx-empty">
-        No matching batches found.
-      </div>
-    `;
-
-    return;
-  }
-
-
-  box.innerHTML =
-    list.map(batch => `
-
-      <div class="zx-row">
-
-        <div>
-
-          <div class="zx-row-title">
-            ${escapeHtml(batch.name)}
-          </div>
-
-          <div class="zx-row-sub">
-            Source ID:
-            ${escapeHtml(
-              batch.sourceBatchId ||
-              batch.id
-            )}
-          </div>
-
-        </div>
-
-
-        <button
-          class="zx-btn"
-          onclick="content('${escapeAttr(batch.id)}')"
-        >
-          Open →
-        </button>
-
-      </div>
-
-    `).join("");
-}
-
-
-/* =====================================================
-   CONTENT
-===================================================== */
-
-async function content(batchId) {
-
-  S.batch =
-    S.batches.find(
-      b =>
-        String(b.id) ===
-        String(batchId)
-    ) || null;
-
-
-  if (!S.batch) {
-
-    alert(
-      "Batch not found"
-    );
-
-    return;
-  }
-
-
-  const srcId =
-    S.batch.sourceBatchId ||
-    S.batch.id;
-
-
-  const endpoint =
-    S.type === "dpp"
-
-      ? `/api/admin/source/batches/${encodeURIComponent(srcId)}/dpps`
-
-      : `/api/admin/source/batches/${encodeURIComponent(srcId)}/tests`;
-
-
-  shell(
-    S.batch.name,
-
-    `
-
-    <div class="zx-card">
-
-      <div class="zx-actions">
-
-        <button
-          class="zx-btn secondary"
-          onclick="batches('${S.type}')"
-        >
-          ← Batches
-        </button>
-
-
-        <button
-          class="zx-btn secondary"
-          onclick="content('${escapeAttr(S.batch.id)}')"
-        >
-          Refresh
-        </button>
-
-
-        <button
-          class="zx-btn"
-          onclick="uploadAll()"
-        >
-          Upload All Pending
-        </button>
-
-      </div>
-
-
-      <div id="progress-summary"></div>
-
-
-      <input
-        id="item-search"
-        class="zx-search"
-        placeholder="Search ${
-          S.type === "dpp"
-            ? "DPP"
-            : "test"
-        }..."
-        oninput="filterContent()"
-      >
-
-
-      <div id="item-list">
-
-        <div class="zx-loading">
-          Loading...
-        </div>
-
-      </div>
-
-    </div>
-
-    `
-  );
-
-
-  try {
-
-    const data =
-      await req(endpoint);
-
-
-    const raw =
-      data.items ||
-      data.data?.items ||
-      data.data?.tests ||
-      data.data?.dpps ||
-      data.data?.data ||
-      data.data ||
-      data.tests ||
-      data.dpps ||
-      [];
-
-
-    S.sourceItems =
-      Array.isArray(raw)
-        ? raw
-            .map(normalizeItem)
-            .filter(
-              i => i.id
-            )
-        : [];
-
-
-    /*
-      Reset browser status.
-      Backend status will be authoritative
-      once the upload/status routes are connected.
-    */
-
-    S.success = new Set();
-    S.skipped = new Set();
-
-
-    await loadBackendStatus();
-
-
-    renderContent();
-
-
-  } catch (error) {
-
-    const box =
-      $("#item-list");
-
-    if (box) {
-
-      box.innerHTML = `
-
-        <div class="zx-empty">
-
-          ${escapeHtml(
-            error.message
-          )}
-
-          <br><br>
-
-          <button
-            class="zx-btn secondary"
-            onclick="batches('${S.type}')"
-          >
-            ← Back
-          </button>
-
-        </div>
-
-      `;
-
-    }
-
-  }
-}
-
-
-/* =====================================================
-   BACKEND STATUS
-===================================================== */
-
-async function loadBackendStatus() {
-
-  if (!S.batch) return;
-
-
-  const srcId =
-    S.batch.sourceBatchId ||
-    S.batch.id;
-
-
-  const type =
-    S.type === "dpp"
-      ? "dpp"
-      : "test";
-
-
-  try {
-
-    const data =
-      await req(
-        `/api/admin/source/batches/${encodeURIComponent(srcId)}/${type}/status`
-      );
-
-
-    const uploaded =
-      data.uploaded ||
-      data.success ||
-      data.skipped ||
-      data.items ||
-      [];
-
-
-    if (Array.isArray(uploaded)) {
-
-      uploaded.forEach(id => {
-
-        S.skipped.add(
-          String(
-            typeof id === "object"
-              ? id.sourceTestId ||
-                id.sourceDppId ||
-                id.id
-              : id
-          )
-        );
-
-      });
-
-    }
-
-
-    if (Array.isArray(data.successIds)) {
-
-      data.successIds.forEach(id => {
-
-        S.success.add(
-          String(id)
-        );
-
-      });
-
-    }
-
-  } catch (e) {
-
-    /*
-      Status endpoint backend me abhi na ho
-      to page ko break nahi karna.
-    */
-
-    console.warn(
-      "Backend status unavailable:",
-      e.message
-    );
-
-  }
-}
-
-
-/* =====================================================
-   CONTENT RENDER
-===================================================== */
-
-function renderContent() {
-
-  drawContentList(
-    S.sourceItems
-  );
-
-}
-
-
-function filterContent() {
-
-  const q =
-    (
-      $("#item-search")?.value ||
-      ""
-    )
-      .trim()
-      .toLowerCase();
-
-
-  drawContentList(
-    S.sourceItems.filter(
-      item =>
-        String(
-          item.title || ""
-        )
-          .toLowerCase()
-          .includes(q)
-    )
-  );
-
-}
-
-
-function drawContentList(list) {
-
-  const box =
-    $("#item-list");
-
-  if (!box) return;
-
-
-  const total =
-    S.sourceItems.length;
-
-
-  const done =
-    S.sourceItems.filter(
-      item =>
-        S.success.has(
-          String(item.id)
-        ) ||
-        S.skipped.has(
-          String(item.id)
-        )
-    ).length;
-
-
-  const percent =
-    total
-      ? Math.round(
-          done / total * 100
-        )
-      : 0;
-
-
-  const summary =
-    $("#progress-summary");
-
-
-  if (summary) {
-
-    summary.innerHTML = `
-
-      <div class="zx-progress-text">
-
-        ${done} / ${total}
-        ${
-          S.type === "dpp"
-            ? "DPPs"
-            : "Tests"
-        }
-
-        processed
-
-      </div>
-
-      <div class="zx-progress">
-
-        <div
-          class="zx-progress-bar"
-          style="width:${percent}%"
-        ></div>
-
-      </div>
-
-    `;
-
-  }
-
-
-  if (!list.length) {
-
-    box.innerHTML = `
-
-      <div class="zx-empty">
-
-        No ${
-          S.type === "dpp"
-            ? "DPPs"
-            : "tests"
-        } found.
-
-      </div>
-
-    `;
-
-    return;
-  }
-
-
-  box.innerHTML =
-    list.map(item => {
-
-      const id =
-        String(item.id);
-
-
-      const success =
-        S.success.has(id);
-
-
-      const skipped =
-        S.skipped.has(id);
-
-
-      const uploading =
-        S.uploading.has(id);
-
-
-      let buttonText =
-        "UPLOAD";
-
-
-      let buttonClass =
-        "";
-
-
-      if (success) {
-
-        buttonText =
-          "✓ SUCCESS";
-
-        buttonClass =
-          "success";
-
-      } else if (skipped) {
-
-        buttonText =
-          "✓ SKIPPED";
-
-        buttonClass =
-          "secondary";
-
-      } else if (uploading) {
-
-        buttonText =
-          "UPLOADING...";
-
-      }
-
-
-      const disabled =
-        success ||
-        skipped ||
-        uploading;
-
-
-      return `
-
-        <div class="zx-row">
-
-          <div>
-
-            <div class="zx-row-title">
-
-              ${escapeHtml(
-                item.title
-              )}
-
-              ${
-                success
-                  ? `
-                    <span class="zx-status success">
-                      SUCCESS
-                    </span>
-                  `
-                  : ""
-              }
-
-              ${
-                skipped
-                  ? `
-                    <span class="zx-status skipped">
-                      SKIPPED
-                    </span>
-                  `
-                  : ""
-              }
-
-            </div>
-
-
-            <div class="zx-row-sub">
-
-              ID:
-              ${escapeHtml(id)}
-
-              ${
-                item.totalQuestions
-                  ? ` · ${escapeHtml(
-                      item.totalQuestions
-                    )} questions`
-                  : ""
-              }
-
-            </div>
-
-          </div>
-
-
-          <button
-            class="zx-btn ${buttonClass}"
-            ${
-              disabled
-                ? "disabled"
-                : ""
-            }
-            onclick="uploadSourceItem('${escapeAttr(id)}')"
-          >
-
-            ${buttonText}
-
-          </button>
-
-        </div>
-
-      `;
-
-    }).join("");
-}
-
-
-/* =====================================================
-   UPLOAD ALL
-===================================================== */
-
-async function uploadAll() {
-
-  if (!S.batch) {
-
-    alert(
-      "Batch not selected"
-    );
-
-    return;
-  }
-
-
-  const pending =
-    S.sourceItems.filter(
-      item => {
-
-        const id =
-          String(item.id);
-
-        return (
-          !S.success.has(id) &&
-          !S.skipped.has(id) &&
-          !S.uploading.has(id)
-        );
-
-      }
-    );
-
-
-  if (!pending.length) {
-
-    alert(
-      "All items are already processed."
-    );
-
-    return;
-  }
-
-
-  if (
-    !confirm(
-      `Upload ${pending.length} pending ${
-        S.type === "dpp"
-          ? "DPPs"
-          : "tests"
-      }?`
-    )
-  ) {
-    return;
-  }
-
-
-  for (const item of pending) {
-
-    try {
-
-      await uploadSourceItem(
-        item.id,
-        true
-      );
-
-    } catch (e) {
-
-      console.error(
-        "Upload All stopped:",
-        e
-      );
-
-      break;
-    }
-
-  }
-
-  renderContent();
-}
-
-
-/* =====================================================
-   UPLOAD SINGLE ITEM
-===================================================== */
-
-async function uploadSourceItem(
-  sourceId,
-  silent = false
-) {
-
-  if (!S.batch) {
-
-    throw new Error(
-      "Batch not selected"
-    );
-
-  }
-
-
-  const id =
-    String(sourceId);
-
-
-  if (
-    S.success.has(id) ||
-    S.skipped.has(id)
-  ) {
-    return;
-  }
-
-
-  const item =
-    S.sourceItems.find(
-      i =>
-        String(i.id) === id
-    );
-
-
-  if (!item) {
-
-    throw new Error(
-      "Item not found"
-    );
-
-  }
-
-
-  S.uploading.add(id);
-
-  renderContent();
-
-
-  try {
-
-    const type =
-      S.type === "dpp"
-        ? "dpp"
-        : "test";
-
-
-    /*
-      IMPORTANT
-
-      Actual upload route.
-
-      Backend is responsible for:
-      - fetching source data
-      - saving to MongoDB
-      - duplicate detection
-      - returning success/skipped
-    */
-
-    const result =
-      await req(
-        `/api/admin/source/batches/${encodeURIComponent(
-          S.batch.sourceBatchId ||
-          S.batch.id
-        )}/${type}/upload`,
-
-        {
-          method: "POST",
-
-          body: JSON.stringify({
-
-            sourceId: id,
-
-            title:
-              item.title,
-
-            sourceItem:
-              item
-
-          })
-
-        }
-      );
-
-
-    const status =
-      String(
-        result.status ||
-        result.result ||
-        ""
-      ).toLowerCase();
-
-
-    if (
-      status === "skipped" ||
-      result.skipped === true
-    ) {
-
-      S.skipped.add(id);
-
-    } else {
-
-      S.success.add(id);
-
-    }
-
-
-    if (!silent) {
-
-      alert(
-        status === "skipped" ||
-        result.skipped === true
-
-          ? "Already uploaded — SKIPPED"
-
-          : `${
-              type === "dpp"
-                ? "DPP"
-                : "Test"
-            } uploaded successfully`
-      );
-
-    }
-
-
-  } catch (error) {
-
-    if (!silent) {
-
-      alert(
-        `Upload failed: ${error.message}`
-      );
-
-    }
-
-    throw error;
-
-
-  } finally {
-
-    S.uploading.delete(id);
-
-    renderContent();
-
-  }
-
-}
-
-
-/* =====================================================
-   HELPERS
-===================================================== */
-
-function normalizeBatch(item) {
-
-  const id =
-    item._id ||
-    item.id ||
-    item.batchId ||
-    item.batch_id;
-
-
-  return {
-
-    ...item,
-
-    id:
-      String(id || ""),
-
-    name:
-      String(
-        item.name ||
-        item.title ||
-        item.batchName ||
-        item.batch_name ||
-        "Unnamed Batch"
-      )
-
-  };
-
-}
-
-
-function normalizeItem(item) {
-
-  const id =
-    item._id ||
-    item.id ||
-    item.testId ||
-    item.test_id ||
-    item.dppId ||
-    item.dpp_id;
-
-
-  return {
-
-    ...item,
-
-    id:
-      String(id || ""),
-
-    title:
-      String(
-        item.title ||
-        item.name ||
-        item.testName ||
-        item.test_name ||
-        item.dppName ||
-        item.dpp_name ||
-        "Untitled"
-      )
-
-  };
-
 }
 
 
 function logout() {
-
-  localStorage.removeItem(
-    "zx_admin_token"
-  );
-
-  localStorage.removeItem(
-    "zx_scope"
-  );
-
-
   S.token = "";
   S.scope = "all";
-
   S.batch = null;
-  S.batches = [];
-  S.sourceItems = [];
 
-  S.success.clear();
-  S.skipped.clear();
-  S.uploading.clear();
-
+  localStorage.removeItem("zx_admin_token");
+  localStorage.removeItem("zx_scope");
 
   showLogin();
 }
 
 
-function escapeHtml(value) {
+/* =========================================================
+   HTML ESCAPE
+========================================================= */
 
-  return String(
-    value ?? ""
-  )
-    .replace(
-      /&/g,
-      "&amp;"
-    )
-    .replace(
-      /</g,
-      "&lt;"
-    )
-    .replace(
-      />/g,
-      "&gt;"
-    )
-    .replace(
-      /"/g,
-      "&quot;"
-    )
-    .replace(
-      /'/g,
-      "&#039;"
-    );
-
+function esc(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 
-function escapeAttr(value) {
+/* =========================================================
+   DATE
+========================================================= */
 
-  return String(
-    value ?? ""
-  )
-    .replace(
-      /\\/g,
-      "\\\\"
-    )
-    .replace(
-      /'/g,
-      "\\'"
-    );
+function formatDate(value) {
+  if (!value) return "—";
 
+  const d = new Date(value);
+
+  if (Number.isNaN(d.getTime())) {
+    return String(value);
+  }
+
+  return d.toLocaleString();
 }
 
 
-/* =====================================================
-   INIT
-===================================================== */
+/* =========================================================
+   SOURCE ID
+========================================================= */
 
-function initLogin() {
+function sourceId(item) {
+  return String(
+    item?.testId ||
+    item?.testID ||
+    item?.id ||
+    item?._id ||
+    item?.test_id ||
+    item?.dppId ||
+    item?.dppID ||
+    item?.sourceTestId ||
+    ""
+  ).trim();
+}
+
+
+function itemTitle(item) {
+  return String(
+    item?.title ||
+    item?.name ||
+    item?.testName ||
+    item?.test_name ||
+    item?.testTitle ||
+    item?.test_title ||
+    item?.subjectName ||
+    "Untitled"
+  ).trim();
+}
+
+
+/* =========================================================
+   BATCH ID
+========================================================= */
+
+function sourceBatchId(batch) {
+  return String(
+    batch?.sourceBatchId ||
+    batch?.batchId ||
+    batch?.batchID ||
+    batch?.id ||
+    batch?._id ||
+    ""
+  ).trim();
+}
+
+
+function batchTitle(batch) {
+  return String(
+    batch?.name ||
+    batch?.batchName ||
+    batch?.title ||
+    "Untitled Batch"
+  ).trim();
+}
+
+
+/* =========================================================
+   HOME
+========================================================= */
+
+async function home() {
+  if (!S.token) {
+    showLogin();
+    return;
+  }
+
+  showApp();
+
+  renderShell();
+
+  await loadBatches();
+}
+
+
+/* =========================================================
+   SHELL
+========================================================= */
+
+function renderShell() {
+  const app = $("#app");
+
+  if (!app) return;
+
+  app.innerHTML = `
+    <div class="zx-panel">
+
+      <header class="zx-header">
+
+        <div>
+          <div class="zx-brand">
+            ZX Uploader
+          </div>
+
+          <div class="zx-subtitle">
+            Test & DPP Uploader
+          </div>
+        </div>
+
+        <button
+          class="zx-logout"
+          onclick="logout()"
+        >
+          Logout
+        </button>
+
+      </header>
+
+
+      <main class="zx-main">
+
+        <section id="page-content"></section>
+
+      </main>
+
+    </div>
+  `;
 
   addPanelStyles();
+}
 
-  if (S.token) {
 
-    showApp();
+/* =========================================================
+   STYLES
+   IMPORTANT:
+   Login screen CSS ko touch nahi karta
+========================================================= */
 
-    home().catch(
-      err => {
+function addPanelStyles() {
+  if ($("#zx-panel-style")) return;
 
-        console.error(
-          "AUTO LOGIN ERROR:",
-          err
+  const style = document.createElement("style");
+
+  style.id = "zx-panel-style";
+
+  style.textContent = `
+    .zx-panel {
+      min-height: 100vh;
+      background: #f6f7fb;
+      color: #111827;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .zx-header {
+      height: 72px;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
+      box-sizing: border-box;
+    }
+
+    .zx-brand {
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+    }
+
+    .zx-subtitle {
+      margin-top: 2px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .zx-logout {
+      border: 0;
+      background: #111827;
+      color: white;
+      border-radius: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .zx-main {
+      max-width: 1100px;
+      margin: auto;
+      padding: 28px 18px 60px;
+      box-sizing: border-box;
+    }
+
+    .zx-page-title {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .zx-page-subtitle {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .zx-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .zx-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.04);
+    }
+
+    .zx-card-title {
+      font-weight: 800;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    .zx-card-meta {
+      margin-top: 7px;
+      color: #6b7280;
+      font-size: 12px;
+    }
+
+    .zx-batch-button {
+      width: 100%;
+      margin-top: 16px;
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 14px;
+      background: #111827;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .zx-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .zx-tab {
+      border: 1px solid #d1d5db;
+      background: white;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .zx-tab.active {
+      background: #111827;
+      color: white;
+      border-color: #111827;
+    }
+
+    .zx-back {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      margin-bottom: 14px;
+      cursor: pointer;
+      font-weight: 700;
+      color: #374151;
+    }
+
+    .zx-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .zx-item {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 15px;
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .zx-item-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .zx-item-title {
+      font-weight: 750;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .zx-item-meta {
+      color: #6b7280;
+      font-size: 11px;
+      margin-top: 5px;
+    }
+
+    .zx-action {
+      min-width: 105px;
+      border: 0;
+      border-radius: 9px;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      background: #111827;
+      color: white;
+    }
+
+    .zx-action:disabled {
+      cursor: default;
+      opacity: .8;
+    }
+
+    .zx-action.success {
+      background: #059669;
+    }
+
+    .zx-action.skipped {
+      background: #6b7280;
+    }
+
+    .zx-action.loading {
+      background: #374151;
+    }
+
+    .zx-empty {
+      text-align: center;
+      padding: 50px 20px;
+      color: #6b7280;
+      background: white;
+      border: 1px dashed #d1d5db;
+      border-radius: 16px;
+    }
+
+    .zx-loading {
+      text-align: center;
+      padding: 50px;
+      color: #6b7280;
+    }
+
+    @media (max-width: 650px) {
+      .zx-header {
+        padding: 0 16px;
+      }
+
+      .zx-main {
+        padding: 20px 12px 40px;
+      }
+
+      .zx-item {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .zx-action {
+        width: 100%;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+
+/* =========================================================
+   BATCHES
+========================================================= */
+
+async function loadBatches() {
+  const page = $("#page-content");
+
+  if (!page) return;
+
+  page.innerHTML = `
+    <div class="zx-loading">
+      Loading batches...
+    </div>
+  `;
+
+  try {
+    const data = await req(
+      "/api/admin/source/batches"
+    );
+
+    S.batches = Array.isArray(data)
+      ? data
+      : (
+          data.items ||
+          data.batches ||
+          data.data ||
+          []
         );
 
-        logout();
+    renderBatches();
 
+  } catch (err) {
+    page.innerHTML = `
+      <div class="zx-empty">
+        <strong>Failed to load batches</strong>
+        <br><br>
+        ${esc(err.message)}
+      </div>
+    `;
+  }
+}
+
+
+function renderBatches() {
+  const page = $("#page-content");
+
+  if (!page) return;
+
+  page.innerHTML = `
+    <div class="zx-page-title">
+      Select Batch
+    </div>
+
+    <div class="zx-page-subtitle">
+      ${S.batches.length} source batches available
+    </div>
+
+    ${
+      S.batches.length
+        ? `
+          <div class="zx-grid">
+            ${S.batches.map((batch, index) => `
+              <div class="zx-card">
+
+                <div class="zx-card-title">
+                  ${esc(batchTitle(batch))}
+                </div>
+
+                <div class="zx-card-meta">
+                  ${esc(
+                    batch?.exam ||
+                    batch?.category ||
+                    batch?.language ||
+                    ""
+                  )}
+                </div>
+
+                <button
+                  class="zx-batch-button"
+                  onclick="selectBatch(${index})"
+                >
+                  Open Batch
+                </button>
+
+              </div>
+            `).join("")}
+          </div>
+        `
+        : `
+          <div class="zx-empty">
+            No batches found.
+          </div>
+        `
+    }
+  `;
+}
+
+
+function selectBatch(index) {
+  const batch = S.batches[index];
+
+  if (!batch) return;
+
+  S.batch = batch;
+  S.success.clear();
+  S.skipped.clear();
+  S.uploadedIds.clear();
+  S.uploadedTitles.clear();
+
+  renderContent();
+}
+
+
+/* =========================================================
+   CONTENT PAGE
+========================================================= */
+
+function renderContent() {
+  const page = $("#page-content");
+
+  if (!page || !S.batch) return;
+
+  page.innerHTML = `
+    <button
+      class="zx-back"
+      onclick="loadBatches()"
+    >
+      ← Back to Batches
+    </button>
+
+    <div class="zx-page-title">
+      ${esc(batchTitle(S.batch))}
+    </div>
+
+    <div class="zx-page-subtitle">
+      Select content type
+    </div>
+
+    <div class="zx-tabs">
+
+      <button
+        id="tab-test"
+        class="zx-tab ${S.type === "test" ? "active" : ""}"
+        onclick="changeType('test')"
+      >
+        Tests
+      </button>
+
+      <button
+        id="tab-dpp"
+        class="zx-tab ${S.type === "dpp" ? "active" : ""}"
+        onclick="changeType('dpp')"
+      >
+        DPPs
+      </button>
+
+    </div>
+
+    <div id="source-list">
+      <div class="zx-loading">
+        Loading...
+      </div>
+    </div>
+  `;
+
+  loadSourceItems();
+}
+
+
+async function changeType(type) {
+  S.type = type;
+
+  S.sourceItems = [];
+  S.success.clear();
+  S.skipped.clear();
+  S.uploadedIds.clear();
+  S.uploadedTitles.clear();
+
+  renderContent();
+}
+
+
+/* =========================================================
+   SOURCE ITEMS
+========================================================= */
+
+async function loadSourceItems() {
+  const list = $("#source-list");
+
+  if (!list || !S.batch) return;
+
+  list.innerHTML = `
+    <div class="zx-loading">
+      Loading ${S.type === "test" ? "tests" : "DPPs"}...
+    </div>
+  `;
+
+  const batchId = sourceBatchId(S.batch);
+
+  if (!batchId) {
+    list.innerHTML = `
+      <div class="zx-empty">
+        Source batch ID not found.
+      </div>
+    `;
+
+    return;
+  }
+
+  try {
+    const endpoint =
+      `/api/admin/source/batches/${encodeURIComponent(batchId)}/${S.type}s`;
+
+    const data = await req(endpoint);
+
+    S.sourceItems = Array.isArray(data)
+      ? data
+      : (
+          data.items ||
+          data.tests ||
+          data.dpps ||
+          data.data ||
+          []
+        );
+
+    await loadBackendStatus(batchId);
+
+    renderSourceItems();
+
+  } catch (err) {
+    list.innerHTML = `
+      <div class="zx-empty">
+        <strong>Failed to load ${S.type}s</strong>
+        <br><br>
+        ${esc(err.message)}
+      </div>
+    `;
+  }
+}
+
+
+/* =========================================================
+   UPLOAD STATUS
+========================================================= */
+
+async function loadBackendStatus(batchId) {
+  try {
+    const data = await req(
+      `/api/admin/source/batches/${encodeURIComponent(batchId)}/${S.type}/status`
+    );
+
+    const ids = data.uploadedIds || [];
+    const titles = data.uploadedTitles || [];
+
+    S.uploadedIds = new Set(
+      ids.map(id => String(id))
+    );
+
+    S.uploadedTitles = new Set(
+      titles
+        .map(title =>
+          String(title)
+            .trim()
+            .toLowerCase()
+        )
+        .filter(Boolean)
+    );
+
+  } catch (err) {
+    console.warn(
+      "Upload status check failed:",
+      err.message
+    );
+  }
+}
+
+
+/* =========================================================
+   RENDER ITEMS
+========================================================= */
+
+function getItemState(item, index) {
+  const id = sourceId(item);
+
+  const title = itemTitle(item)
+    .trim()
+    .toLowerCase();
+
+  if (S.success.has(id || String(index))) {
+    return "success";
+  }
+
+  if (S.skipped.has(id || String(index))) {
+    return "skipped";
+  }
+
+  if (
+    (id && S.uploadedIds.has(id)) ||
+    (title && S.uploadedTitles.has(title))
+  ) {
+    return "skipped";
+  }
+
+  if (S.uploading.has(id || String(index))) {
+    return "loading";
+  }
+
+  return "upload";
+}
+
+
+function renderSourceItems() {
+  const list = $("#source-list");
+
+  if (!list) return;
+
+  if (!S.sourceItems.length) {
+    list.innerHTML = `
+      <div class="zx-empty">
+        No ${S.type === "test" ? "tests" : "DPPs"} found.
+      </div>
+    `;
+
+    return;
+  }
+
+  list.innerHTML = `
+    <div class="zx-list">
+
+      ${S.sourceItems.map((item, index) => {
+
+        const id =
+          sourceId(item) ||
+          `item-${index}`;
+
+        const title =
+          itemTitle(item);
+
+        const state =
+          getItemState(item, index);
+
+        let buttonText = "UPLOAD";
+        let buttonClass = "";
+        let disabled = "";
+
+        if (state === "success") {
+          buttonText = "SUCCESS";
+          buttonClass = "success";
+          disabled = "disabled";
+
+        } else if (state === "skipped") {
+          buttonText = "SKIPPED";
+          buttonClass = "skipped";
+          disabled = "disabled";
+
+        } else if (state === "loading") {
+          buttonText = "UPLOADING...";
+          buttonClass = "loading";
+          disabled = "disabled";
+        }
+
+        return `
+          <div class="zx-item">
+
+            <div class="zx-item-info">
+
+              <div class="zx-item-title">
+                ${esc(title)}
+              </div>
+
+              <div class="zx-item-meta">
+                ${
+                  id.startsWith("item-")
+                    ? ""
+                    : `ID: ${esc(id)}`
+                }
+              </div>
+
+            </div>
+
+            <button
+              class="zx-action ${buttonClass}"
+              ${disabled}
+              onclick="uploadItem(${index})"
+            >
+              ${buttonText}
+            </button>
+
+          </div>
+        `;
+      }).join("")}
+
+    </div>
+  `;
+}
+
+
+/* =========================================================
+   UPLOAD ITEM
+========================================================= */
+
+async function uploadItem(index) {
+  const item = S.sourceItems[index];
+
+  if (!item || !S.batch) return;
+
+  const id =
+    sourceId(item) ||
+    `item-${index}`;
+
+  const title =
+    itemTitle(item);
+
+  const normalizedTitle =
+    title.trim().toLowerCase();
+
+  if (
+    S.uploadedIds.has(id) ||
+    (
+      normalizedTitle &&
+      S.uploadedTitles.has(normalizedTitle)
+    )
+  ) {
+    S.skipped.add(id);
+    renderSourceItems();
+    return;
+  }
+
+  if (S.uploading.has(id)) {
+    return;
+  }
+
+  S.uploading.add(id);
+
+  renderSourceItems();
+
+  const batchId =
+    sourceBatchId(S.batch);
+
+  if (!batchId) {
+    S.uploading.delete(id);
+    renderSourceItems();
+
+    alert("Source batch ID not found.");
+
+    return;
+  }
+
+  try {
+    const payload = {
+      sourceTestId: id,
+      sourceId: id,
+
+      sourceBatchId: batchId,
+
+      title: title,
+
+      instructions:
+        item?.instructions ||
+        item?.instruction ||
+        item?.description ||
+        "",
+
+      startTime:
+        item?.startTime ||
+        item?.start_time ||
+        item?.startDate ||
+        item?.start_date ||
+        item?.scheduledAt ||
+        item?.scheduleTime ||
+        null,
+
+      sourceItem: item
+    };
+
+    const result = await req(
+      `/api/admin/source/batches/${encodeURIComponent(batchId)}/${S.type}/upload`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
       }
     );
 
-  } else {
+    S.uploading.delete(id);
 
-    showLogin();
+    if (result?.skipped) {
+      S.skipped.add(id);
+      S.uploadedIds.add(id);
 
+      if (normalizedTitle) {
+        S.uploadedTitles.add(
+          normalizedTitle
+        );
+      }
+
+    } else {
+      S.success.add(id);
+      S.uploadedIds.add(id);
+
+      if (normalizedTitle) {
+        S.uploadedTitles.add(
+          normalizedTitle
+        );
+      }
+    }
+
+    renderSourceItems();
+
+  } catch (err) {
+    S.uploading.delete(id);
+
+    renderSourceItems();
+
+    alert(
+      `Upload failed:\n\n${err.message}`
+    );
+  }
+}
+
+
+/* =========================================================
+   UPLOAD ALL
+========================================================= */
+
+async function uploadAll() {
+  for (
+    let index = 0;
+    index < S.sourceItems.length;
+    index++
+  ) {
+    const item = S.sourceItems[index];
+
+    const id =
+      sourceId(item) ||
+      `item-${index}`;
+
+    const title =
+      itemTitle(item)
+        .trim()
+        .toLowerCase();
+
+    if (
+      S.success.has(id) ||
+      S.skipped.has(id) ||
+      S.uploadedIds.has(id) ||
+      (
+        title &&
+        S.uploadedTitles.has(title)
+      )
+    ) {
+      continue;
+    }
+
+    await uploadItem(index);
+  }
+}
+
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+function bindLogin() {
+  const form = $("#login-form");
+
+  if (form) {
+    form.addEventListener(
+      "submit",
+      doLogin
+    );
   }
 
+  const button = $("#login-button");
+
+  if (
+    button &&
+    !form
+  ) {
+    button.addEventListener(
+      "click",
+      doLogin
+    );
+  }
 }
 
 
-if (
-  document.readyState ===
-  "loading"
-) {
+async function init() {
+  bindLogin();
 
-  document.addEventListener(
-    "DOMContentLoaded",
-    initLogin
-  );
+  if (S.token) {
+    try {
+      showApp();
+      await home();
 
-} else {
+    } catch (err) {
+      console.error(err);
+      logout();
+    }
 
-  initLogin();
-
+  } else {
+    showLogin();
+  }
 }
 
 
-/* =====================================================
+document.addEventListener(
+  "DOMContentLoaded",
+  init
+);
+
+
+/* =========================================================
    GLOBALS
-===================================================== */
+========================================================= */
 
-window.doLogin =
-  doLogin;
-
-window.home =
-  home;
-
-window.batches =
-  batches;
-
-window.content =
-  content;
-
-window.filterBatches =
-  filterBatches;
-
-window.filterContent =
-  filterContent;
-
-window.uploadSourceItem =
-  uploadSourceItem;
-
-window.uploadAll =
-  uploadAll;
-
-window.logout =
-  logout;
+window.doLogin = doLogin;
+window.logout = logout;
+window.selectBatch = selectBatch;
+window.changeType = changeType;
+window.uploadItem = uploadItem;
+window.uploadAll = uploadAll;
